@@ -1,7 +1,8 @@
 import editdistance
 import random
-
+#import matplotlib.pyplot as plt
 from enum import Enum
+#from sklearn.decomposition import PCA
 import Bio
 import os
 import sys
@@ -112,12 +113,19 @@ else:
     buckets = randomlyDistribute(num_clusters, num_sequences)
     clusters = []
     print('distributed clusters')
+    sequences = list()
     for i in range(0, num_clusters):
-        cluster_seed = createChild(seed, random.choice(range(2*mean_cluster_radius, 8*mean_cluster_radius + 1)))
+        cluster_seed = createChild(seed, random.choice(range(8*mean_cluster_radius, 16*mean_cluster_radius + 1)))
         cluster = Cluster(cluster_seed, cluster_radii[i])
         cluster.generateChildren(buckets[i])
         print('cluster: {0}, sequence: {1}, radius: {2}'.format(i + 1, cluster_seed, cluster_radii[i]))
         for x in cluster.getChildren():
             assert(editdistance.eval(cluster_seed, x) <= cluster_radii[i])
+            sequences.append(x)
             print(x)
-    
+    i = 0
+    for sequence in sequences:
+        print('> {0}'.format(i))
+        print(sequence)
+        i += 1
+        
