@@ -5,6 +5,7 @@ import sys
 if len(sys.argv) > 2:
     fasta_file_name = sys.argv[1]
     lengths = []
+    j = 0
     for x in sys.argv[2::]:
         lengths.append(int(x))
     with open(fasta_file_name, 'r') as handle:
@@ -12,4 +13,6 @@ if len(sys.argv) > 2:
             protein = record.seq
             for length in lengths:
                 for i in range(0, len(protein) - length + 1):
+                    print('>' + str(j))
+                    j += 1
                     print(protein[i:(i + length)])
