@@ -30,7 +30,7 @@ else
     done
    
     head -n 1 $huskyct_csv 
-    join -1 1 -2 3 $spreadsheet_grades $sorted_huskyct -o $output_string -t $',' | awk -F "," '{for(i = 1; i < NF; i++){ printf "\"%s\"\t", $i} printf "\"%s\"\n", $NF}'
+    join -1 1 -2 3 $spreadsheet_grades $sorted_huskyct -o $output_string -t $',' | awk -F "," '{for(i = 1; i < NF; i++){ printf "\"%s\",", $i} printf "\"%s\"\n", $NF}'
 fi
 
 
