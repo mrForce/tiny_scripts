@@ -1,1 +1,1 @@
-Only a single extra byte is needed for 's' in make_copy, not four times as many (from sizeof(int)). This extra byte is for the final null terminating character that every C string needs to end with but is not included in the length calculation. The 'copy' string must be free'd after 'ptr' is free'd.
+Perfect!
