@@ -1,1 +1,1 @@
-No changes made.
+An extra byte for the null terminating character '\0' must be included. (It should be malloc(len+1).)
