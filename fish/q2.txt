@@ -1,1 +1,1 @@
-The code does not contain comments with the changes as the question required. Should malloc len+1 bytes. sizeof(string) will always return 8 as that is the size of a char pointer on a 64 bit machine.
+The code does not compile. The code does not contain comments with the changes as the question required. An extra byte for the null terminating character '\0' must be included. (It should be malloc(len+1).) The make_copy function should return the new 's' string. The 'copy' string must be free'd after 'ptr' is free'd.
