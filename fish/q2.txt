@@ -1,1 +1,1 @@
-Perfect!
+The code does not contain comments with the changes as the question required. Should malloc len+1 bytes. sizeof(string) will always return 8 as that is the size of a char pointer on a 64 bit machine.
