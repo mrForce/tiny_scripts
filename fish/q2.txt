@@ -1,1 +1,1 @@
-Almost perfect! No need to malloc 'string' in the main function. It already equalled the string we were interested in. By setting it equal to a static string, we lose the pointer returned by malloc, which gives us the memory leak of 15 bytes.
+Perfect!
