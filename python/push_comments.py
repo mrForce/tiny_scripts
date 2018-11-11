@@ -3,7 +3,7 @@ import glob
 import os
 import sys
 import subprocess
-from prettytable import PrettyTable, from_csv
+
 CRITERIA_ROW = 0
 VALUE_ROW = 1
 COMMENT_COLUMN = -1
