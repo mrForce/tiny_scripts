@@ -3,20 +3,20 @@ import glob
 import os
 import sys
 import subprocess
-
+from decimal import *
 CRITERIA_ROW = 0
 VALUE_ROW = 1
 COMMENT_COLUMN = -1
-TOTAL_COLUMN = -3
+TOTAL_COLUMN = -2
 NETID_COLUMN=0
 FIRST_COLUMN=1
-LAST_COLUMN=-4
+LAST_COLUMN=-3
 START_ROW=2
 
 GIT_PUSH = True
-COMMIT_MESSAGE = 'Exam 2 Q2 Comments'
-scores = '/home/jforce/Documents/comments/exam_II_q2.csv'
-students_path = '/home/jforce/gitolite-admin/bin2018f/cse3100f18.{NETID}/exam2/q2.txt'
+COMMIT_MESSAGE = 'Exam II Q4 comments'
+scores = '/home/jforce/Documents/comments/exam_II_q4.txt'
+students_path = '/home/jforce/gitolite-admin/bin2018f/cse3100f18.{NETID}/exam2/q4.txt'
 
 
 
@@ -41,11 +41,16 @@ with open(scores, 'r') as f:
             with open(path, 'w') as g:
                 g.write('NetID: ' + netid + '\n')
                 g.write('Comment: ' + comment + '\n')
-                g.write('Points: ' + total + ' out of: ' + points_row[total_fieldname] + '\n')
+                g.write('Points: ' + total + ' out of ' + points_row[total_fieldname] + '\n')
                 g.write('\n\nPoints breakdown: \n\n\n')
+                total_points = Decimal('0')
                 for field in fields_to_show:
-                    field_value = float(row[field]) if len(row[field]) > 0 else 0
-                    g.write(field + ': ' + str(field_value*float(points_row[field])) + ' out of: ' + points_row[field] + '\n')
+                    field_value = Decimal(row[field]) if len(row[field]) > 0 else 0
+                    num_points = field_value*Decimal(points_row[field])
+                    total_points += num_points
+                    a = float(str(num_points))
+                    g.write(field + ': ' + str(num_points) + ' out of: ' + points_row[field] + '\n')
+                assert(Decimal(total) == total_points)
             subprocess.run(['git', 'add', os.path.basename(path)], cwd = os.path.dirname(path))
             subprocess.run(['git', 'commit', '-m', COMMIT_MESSAGE], cwd = os.path.dirname(path))
             if GIT_PUSH:
