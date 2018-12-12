@@ -1,0 +1,15 @@
+#!/usr/bin/zsh
+
+
+
+function md5SumFolder() {
+   #simple trick: just take the folder, md5sum all of the folders, cut out the MD5sums, sort, and re-sum them. 
+    md5sum $1/*(.) | cut -c 1-32 | md5sum | cut -c 1-32
+}
+md5ref=$(md5SumFolder $1)
+for file in "${@:2}"; do
+    tempMD5=$(md5SumFolder $file)
+    if [ "$tempMD5" = "$md5ref" ]; then
+	
+    fi
+done
