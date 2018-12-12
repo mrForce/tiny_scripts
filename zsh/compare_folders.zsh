@@ -1,6 +1,6 @@
 #!/usr/bin/zsh
 
-
+#example: ./compare_folders.zsh ~/cse3100f18.assignments/hw9/hw9 ~/gitolite-admin/list/ids.txt ~/gitolite-admin/bin2018f/cse3100f18.*/hw9 (expand the last one using the tab completion glob thing in ZSH)
 
 function md5SumFolder() {
     #simple trick: just take the folder, md5sum all of the folders, cut out the MD5sums, sort, and re-sum them. 
