@@ -1,0 +1,12 @@
+male #1 enters bathroom
+male #2 enters bathroom
+female #1 waits
+male #1 exits bathroom
+male #3 enters bathroom
+female #2 waits
+male #2 exits bathroom
+male #3 exits bathroom
+female #1 enters bathroom
+female #2 enters bathroom
+female #2 exits bathroom
+female #1 exits bathroom

@@ -1,0 +1,9 @@
+female #1 enters
+female #2 enters
+female #3 enters
+female #4 waits
+male #1 waits
+female #1 exits
+female #2 exits
+female #3 exits
+male #1 enters
