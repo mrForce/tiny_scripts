@@ -1,0 +1,1 @@
+{'files': ['thing1.c', 'thing2.c'], 'assignment': 'exam1', 'good': ('jrf12002', 100, [('Q2', 'q2.txt'), ('Q3', 'q3.txt')]), 'average': ('abc12345', 47, [('Q2', 'q2.txt'), ('Q3', 'q3.txt')]), 'poor': ('xyz56789', 34, [('Q2', 'q2.txt'), ('Q3', 'q3.txt')])}
