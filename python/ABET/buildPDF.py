@@ -32,7 +32,8 @@ with open('configs.txt', 'r') as f:
                 text += '\\newpage\n\\section{%s}\n' % example_name
                 for file_name in files:
                     path = file_location.replace('{NETID}', netid).replace('{ASSIGNMENT}', assignment).replace('{FILE}', file_name)
-                    if os.path.exists(path):                        
+                    if os.path.exists(path):
+                        #minted doesn't like _ in the file name
                         if '_' in file_name:
                             new_path = file_location.replace('{NETID}', netid).replace('{ASSIGNMENT}', assignment).replace('{FILE}', file_name.replace('_', '-'))
                             shutil.copy(path, new_path)
