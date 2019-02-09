@@ -1,3 +1,10 @@
+"""
+The point of this script is parse an MZIdentML file from MSGF+, extract the Uniprot ID from the FASTA headers (specified by "accession"). 
+
+Then, convert the Uniprot ID to either Gene name, or RefSeq (depending on what the user specifies), and get the TPM for that gene.
+
+"""
+
 import collections
 from pyteomics import mzid
 import argparse
@@ -38,7 +45,9 @@ tpm_data = parse_tpm(args.tpm_file)
 uniprot_data = parse_uniprot_mapper(args.uniprot_file, args.identifier)
 
 mzid_parser = mzid.DataFrame(args.mzid_file)
-
+"""
+TODO: Change this so it takes the max RawScore over the items.
+"""
 for row in mzid_parser:
     accession = mzid_parser['accession']
     if len(accession) == 1 and not mzid_parser['isDecoy']:
