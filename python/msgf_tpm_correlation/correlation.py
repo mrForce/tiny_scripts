@@ -4,7 +4,7 @@ The point of this script is parse an MZIdentML file from MSGF+, extract the Unip
 Then, convert the Uniprot ID to either Gene name, or RefSeq (depending on what the user specifies), and get the TPM for that gene.
 
 """
-
+import numpy
 import collections
 from pyteomics import mzid
 import argparse
@@ -53,18 +53,15 @@ peptides = collections.defaultdict(lambda: [-10000000, ''])
 
 
 
-
-for row in mzid_parser.to_dict(orient='records'):
+#Note: DO NOT USE itertuples HERE! Unfortunately, namedtuple takes MS-GF:RawScore and converts it to a positional parameter.
+for i, row in mzid_parser.iterrows():
     accession = row['accession']
     if len(accession) == 1 and not row['isDecoy'] and 'MS-GF:RawScore' in row:
         uniprot_id = accession[0].split('|')[1]
         tpm_id_list = uniprot_data[uniprot_id]
-        print('tpm id list')
-        print(tpm_id_list)
         if len(tpm_id_list) == 1:
             tpm_id = tpm_id_list[0]
             if tpm_id in tpm_data and tpm_data[tpm_id] > 0.0:
-                print('yay')
                 if peptides[row['PeptideSequence']][0] < row['MS-GF:RawScore']:
                     peptides[row['PeptideSequence']][0] = row['MS-GF:RawScore']
                 if len(peptides[row['PeptideSequence']][1]) == 0:
@@ -76,11 +73,16 @@ for row in mzid_parser.to_dict(orient='records'):
 #    print('%f\t%f' % (tpm_data[info[1]], info[0]))
 tpms = []
 scores = []
-print('peptides')
-print(peptides)
 for peptide, info in peptides.items():
     tpms.append(tpm_data[info[1]])
     scores.append(info[0])
 
-plt.plot(tpms, scores)
+print(min(tpms))
+    
+z = numpy.polyfit(tpms, scores, 1)
+p = numpy.poly1d(z)
+plt.plot(tpms, p(tpms), 'r-')
+plt.scatter(tpms, scores)
+plt.xlabel('TPM')
+plt.ylabel('Max MSGF+ Score')
 plt.show()
