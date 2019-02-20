@@ -36,10 +36,6 @@ def insert(value):
         iterator = head
         while iterator.value < value:
             iterator = iterator.next_node
-        print('iterator')
-        print(iterator)
-        print(iterator.value)
-        print(iterator.prev_node)
         behind = iterator.prev_node
         next_node = iterator
         behind.next_node = new_node
