@@ -1,0 +1,1 @@
+When students are using Mimir, we have them run this to encrypt their code using a public key. Then, use the recover script to decrypt their code when everyone has taken the exam.
