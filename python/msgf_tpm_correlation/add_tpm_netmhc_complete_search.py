@@ -160,7 +160,7 @@ print('target affinity')
 print(target_affinity)
 
 target_tpm = {}
-
+decoy_tpm = {}
 """
 Extract the TPM values for the targets
 """
@@ -185,7 +185,23 @@ for i, row in mzid_parser.iterrows():
         target_tpm[peptide] = tpm
 #randomly sample from this to assign NetMHC values to decoys
 tpms = list(target_tpm.values())        
-
+for i, row in mzid_parser.iterrows():
+    accessions = row['accession']
+    peptide = clean_peptide(row['PeptideSequence'])
+    if row['isDecoy'] and 'MS-GF:RawScore' in row and peptide not in decoy_tpm:
+        tpm = 0
+        for accession in accessions:
+            uniprot_id = accession.split('|')[1]
+            tpm_id_list = uniprot_data[uniprot_id]
+            if len(tpm_id_list) == 0:
+                tpm += 1
+            else:
+                for tpm_id in tpm_id_list:
+                    if tpm_id in tpm_data:
+                        tpm += max(1, tpm_data[tpm_id])
+                    else:
+                        tpm += 1
+        decoy_tpm[peptide] = tpm
 
 """
 Now go through PIN file, and insert the TPM and affinity
@@ -226,10 +242,10 @@ with open(args.pin_file, 'r') as f:
                         row_copy[allele] = target_affinity[allele][peptide]
                 elif label == '-1':
                     #decoy, for TPM, just sample randomly
-                    row_copy['TPM'] = random.choice(tpms)
+                    #!row_copy['TPM'] = random.choice(tpms)
+                    row_copy['TPM'] = decoy_tpm[peptide]
                     for allele in netmhc_alleles:
                         print('peptide: ' + peptide)
                         assert(peptide in decoy_affinity[allele])
                         row_copy[allele] = decoy_affinity[allele][peptide]
                 writer.writerow(row_copy)
-            
