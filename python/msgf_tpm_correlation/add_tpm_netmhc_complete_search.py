@@ -10,16 +10,14 @@ import collections
 import math
 from pyteomics import mzid
 import argparse
-import matplotlib.pyplot as plt
 import statistics
 import sys
-from scipy.cluster.vq import vq, kmeans, whiten
-from scipy import stats
+
 import csv
 import re
 import subprocess
 import tempfile
-NETMHC_LOCATION='/home/jforce/Downloads/netMHC-4.0/Linux_x86_64/bin/netMHC'
+NETMHC_LOCATION='/home/code/IMPORT/netMHC-4.0/netMHC'
 min_peptide_length = 8
 max_peptide_length = 12
 def parse_tpm(path):
@@ -78,9 +76,12 @@ def write_fasta(output_location, sequences):
 
 
 ptm_removal_regex = re.compile('\[[^\]]*\]')
-
+inside_peptide_regex = re.compile('^[-a-zA-Z]\.(?P<peptide>.*)\.[-a-zA-Z]$')
 def clean_peptide(seq):
-    return ptm_removal_regex.sub('', seq).replace('.', '').strip()
+    internal_seq = seq
+    if seq[1] == '.' and seq[-2] == '.':        
+        internal_seq = inside_peptide_regex.match(seq).group('peptide')
+    return ptm_removal_regex.sub('', internal_seq).strip()
 parser = argparse.ArgumentParser(description='Add TPM values and NetMHC affinity to the output')
 parser.add_argument('mzid_file')
 parser.add_argument('pin_file')
@@ -95,21 +96,25 @@ tpm_data = parse_tpm(args.tpm_file)
 Returns a dictionary mapping the peptide to its affinity
 """
 def call_netmhc(peptides, hla):
-    file = open('netmhc_input.txt', 'w')
+    input_file = open('netmhc_input.txt', 'w')
     output_location = 'netmhc_output.txt'
+    output_file = open(output_location, 'w')
     for x in peptides:
-        x.write(x.strip('.-') + '\n')
-    command = [NETMHC_LOCATION, '-a', hla, '-f', 'netmhc_input.txt', '-p', '>', output_location]
-    subprocess.call(command, shell=True)
-    file.close()
-    regex = re.compile('^(\s+[^\s]+){2}(\s+(?P<peptide>[A-Z]+))(\s+[^\s]+){10}(\s+(?P<rank>[0-9]{1,2}\.[0-9]+))')
+        input_file.write(clean_peptide(x) + '\n')
+    input_file.close()
+    command = [NETMHC_LOCATION, '-a', hla, '-f', 'netmhc_input.txt', '-p']
+    print('command: ' + ' '.join(command))
+    #assert(False)
+    subprocess.call(command, stdout=output_file)
+    output_file.close()
+    regex = re.compile('^(\s+[^\s]+){2}(\s+(?P<peptide>[A-Z]+))(\s+[^\s]+){10}(\s+(?P<affinity>[0-9]{1,2}\.[0-9]+))')
     results = {}
     with open(output_location, 'r') as f:
         for line in f:
             match = regex.match(line)
             if match:
                 peptide = match.group('peptide')
-                affinity = float(match.group(affinity))
+                affinity = float(match.group('affinity'))
                 results[peptide] = affinity
             else:
                 print('Could not match line: %s' % line)
@@ -146,12 +151,14 @@ Call NetMHC on the decoys and targets
 decoy_affinity = {}
 for allele in netmhc_alleles:
     decoy_affinity[allele] = call_netmhc(decoy_peptides, allele)
-
+print('decoy affinity')
+print(decoy_affinity)
 target_affinity = {}
 for allele in netmhc_alleles:
     target_affinity[allele] = call_netmhc(target_peptides, allele)
+print('target affinity')
+print(target_affinity)
 
-target_affinity = {}
 target_tpm = {}
 decoy_tpm = {}
 """
@@ -199,46 +206,46 @@ for i, row in mzid_parser.iterrows():
 """
 Now go through PIN file, and insert the TPM and affinity
 """
-pin_output = input('Enter pin output: ')
+pin_output = 'eg7_output.pin'#input('Enter pin output: ')
 #control pin is just eliminated anything except 8-12 mers
-control_pin_output = input('Enter location of control pin: ' )            
+control_pin_output = 'eg7_control.pin'#input('Enter location of control pin: ' )            
 with open(args.pin_file, 'r') as f:
     reader = csv.DictReader(f, delimiter='\t', restkey='Proteins')
+    read_entries = list(reader)
     fieldnames = list(reader.fieldnames)
-    fieldnames.insert(6, 'TPM')
-    for allele in netmhc_alleles:
-        fieldnames.insert(7, allele)
     with open(control_pin_output, 'w') as g:
         writer = csv.DictWriter(g, fieldnames=fieldnames, delimiter='\t')
         writer.writeheader()
-        next(reader)
-        for row in reader:
+        for row in read_entries[1::]:
             peptide = clean_peptide(row['Peptide'])
             label = row['Label']
             if len(peptide) >= min_peptide_length and len(peptide) <= max_peptide_length:
                 writer.writerow(row)
-
+    
+    fieldnames.insert(6, 'TPM')
+    for allele in netmhc_alleles:
+        fieldnames.insert(7, allele)
     with open(pin_output, 'w') as g:        
         writer = csv.DictWriter(g, fieldnames=fieldnames, delimiter='\t')
         writer.writeheader()
-        next(reader)
-        for row in reader:
+        for row in read_entries[1::]:
             peptide = clean_peptide(row['Peptide'])
-            label = row['Label']
-            row_copy = dict(row)
-            if label == '1':
-                #target                                
-                assert(peptide in target_tpm)
-                row_copy['TPM'] = target_tpm[peptide]
-                for allele in netmhc_alleles:
-                    assert(peptide in target_affinity[allele])
-                    row_copy[allele] = target_affinity[allele][peptide]
-            elif label == '-1':
-                #decoy, for TPM, just sample randomly
-                #row_copy['TPM'] = random.choice(tpms)
-                row_copy['TPM'] = decoy_tpm[peptide]
-                for allele in netmhc_alleles:
-                    assert(peptide in decoy_affinity[allele])
-                    row_copy[allele] = decoy_affinity[allele][peptide]
-            writer.writerow(row_copy)
-            
+            if len(peptide) >= min_peptide_length and len(peptide) <= max_peptide_length:
+                label = row['Label']
+                row_copy = dict(row)
+                if label == '1':
+                    #target                                
+                    assert(peptide in target_tpm)
+                    row_copy['TPM'] = target_tpm[peptide]
+                    for allele in netmhc_alleles:
+                        assert(peptide in target_affinity[allele])
+                        row_copy[allele] = target_affinity[allele][peptide]
+                elif label == '-1':
+                    #decoy, for TPM, just sample randomly
+                    #!row_copy['TPM'] = random.choice(tpms)
+                    row_copy['TPM'] = decoy_tpm[peptide]
+                    for allele in netmhc_alleles:
+                        print('peptide: ' + peptide)
+                        assert(peptide in decoy_affinity[allele])
+                        row_copy[allele] = decoy_affinity[allele][peptide]
+                writer.writerow(row_copy)
