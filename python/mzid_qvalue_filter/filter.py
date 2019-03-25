@@ -3,9 +3,9 @@ from pyteomics import mzid
 
 parser = argparse.ArgumentParser(description='Filter an MzIdentML file by q-value')
 
-parser.add_argument('input', description='input mzid file')
-parser.add_argument('threshold', type=float, description='maximum q value')
-parser.add_argument('output', description='location of filtered mzid file')
+parser.add_argument('input', help='input mzid file')
+parser.add_argument('threshold', type=float, help='maximum q value')
+parser.add_argument('output', help='location of filtered mzid file')
 namespace = '{http://psidev.info/psi/pi/mzIdentML/1.1}'
 args = parser.parse_args()
 m = mzid.MzIdentML(args.input)
@@ -13,13 +13,15 @@ m.build_tree()
 tree = m._tree
 identifications = tree.findall('./*/%sAnalysisData/*/%sSpectrumIdentificationResult' % (namespace, namespace))
 
+num_identifications = 0
+num_removals = 0
 for ident in identifications:
-    items = ident.findall('%sSpectrumIdentificationItem' % namespace)
-    assert(len(items) == 1)
-    item = items[0]
+    item = ident.find('%sSpectrumIdentificationItem' % namespace)
     q_value = float(item.find('%scvParam[@name=\'MS-GF:QValue\']' % namespace).attrib['value'])
+    num_identifications += 1
     if q_value > args.threshold:
         ident.find('..').remove(ident)
-
+        num_removals += 1
 
 tree.write(args.output)
+print('num identifications: %d, num removals: %d, num confident matches: %d' % (num_identifications, num_removals, num_identifications - num_removals))
