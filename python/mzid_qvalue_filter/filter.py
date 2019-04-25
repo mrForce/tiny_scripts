@@ -15,13 +15,16 @@ identifications = tree.findall('./*/%sAnalysisData/*/%sSpectrumIdentificationRes
 
 num_identifications = 0
 num_removals = 0
-for ident in identifications:
-    item = ident.find('%sSpectrumIdentificationItem' % namespace)
-    q_value = float(item.find('%scvParam[@name=\'MS-GF:QValue\']' % namespace).attrib['value'])
-    num_identifications += 1
-    if q_value > args.threshold:
-        ident.find('..').remove(ident)
-        num_removals += 1
 
-tree.write(args.output)
+for ident in identifications:
+    items = ident.findall('%sSpectrumIdentificationItem' % namespace)
+    for item in items:
+        q_value = float(item.find('%scvParam[@name=\'MS-GF:PepQValue\']' % namespace).attrib['value'])
+        num_identifications += 1
+        if q_value > args.threshold:
+            ident.find('..').remove(ident)            
+            num_removals += 1
+            break
+
+tree.write(args.output, xml_declaration=True)
 print('num identifications: %d, num removals: %d, num confident matches: %d' % (num_identifications, num_removals, num_identifications - num_removals))
