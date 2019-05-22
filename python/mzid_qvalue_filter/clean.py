@@ -12,7 +12,7 @@ with open(args.input, 'r') as f:
     for row in reader:
         if row['SpecId'] != 'DefaultDirection':
             if isinstance(row['Proteins'], list):
-                temp = row['Proteins'].join(',')
+                temp = ','.join(row['Proteins'])
                 row['Proteins'] = temp
             new_rows.append(row)
     with open(args.output, 'w') as g:
