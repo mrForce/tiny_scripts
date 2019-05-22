@@ -16,7 +16,7 @@ with open(args.input, 'r') as f:
                 row['Proteins'] = temp
             new_rows.append(row)
     with open(args.output, 'w') as g:
-        writer = csv.DictWriter(g, delimiter='\t')
+        writer = csv.DictWriter(g, fieldnames = reader.fieldnames, delimiter='\t')
         writer.writeheader()
         for row in new_rows:
             writer.writerow(row)
