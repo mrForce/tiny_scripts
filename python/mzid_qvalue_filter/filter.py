@@ -19,7 +19,7 @@ num_removals = 0
 for ident in identifications:
     items = ident.findall('%sSpectrumIdentificationItem' % namespace)
     for item in items:
-        q_value = float(item.find('%scvParam[@name=\'MS-GF:PepQValue\']' % namespace).attrib['value'])
+        q_value = float(item.find('%scvParam[@name=\'MS-GF:QValue\']' % namespace).attrib['value'])
         num_identifications += 1
         if q_value > args.threshold:
             ident.find('..').remove(ident)            
