@@ -1,5 +1,4 @@
-import argparse
-import re
+import argparseimport re
 from enum import Enum
 import csv
 class CutoffType(Enum):
@@ -12,7 +11,6 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type):
     label is -1 for decoy, 1 for target
     """
     #first, sort by score in descending order if score_direction is +, ascending order if score_direction is -
-
     assert(score_direction in ['+', '-'])
     assert(cutoff_type is CutoffType.Q_VALUE or cutoff_type is CutoffType.FDR)
     for i in range(0, len(entries)):
@@ -67,20 +65,67 @@ parser = argparse.ArgumentParser(description='Given TSV file(s), a peptide colum
 parser.add_argument('peptide_column', description='Which column contains the peptide')
 parser.add_argument('score_column', description='Which column contains the score')
 parser.add_argument('score_direction', description='+ if a higher score is better, - if a lower score is better', choices=['+', '-'])
-parser.add_argument('td_column', description='Column that indicates if the row is for a target match (is a 1), or a decoy match (is a -1)')
+parser.add_argument('label_column', description='Column that indicates if the row is for a target match (is a 1), or a decoy match (is a -1)')
+parser.add_argument('threshold', description='FDR/Q-value cutoff', type=float)
 parser.add_argument('output_directory', description='Where to put the output files')
 parser.add_argument('input_files', nargs=argparse.REMAINDER)
 
 args = parser.parse_args()
+fieldnames = None
+rows = []
 for input_file in args.input_files:
-    rows = []
     with open(input_file, 'r') as f:
         reader = csv.DictReader(f, delimiter='\t')
-        reader.__next__()
+        if fieldnames:
+            assert(set(reader.fieldnames).issubset(fieldnames))
+            assert(set(reader.fieldnames).issuperset(fieldnames))
+        else:
+            fieldnames = set(reader.fieldnames)
+            assert(fieldnames)
         for row in reader:
             assert(args.peptide_column in row)
             assert(args.score_column in row)
-            assert(args.td_column in row)
-            assert(row[args.td_column] in ['1', '-1'])
+            assert(args.label_column in row)
+            assert(row[args.label_column] in ['1', '-1'])
             rows.append(row)
+assert(fieldnames)
+print('fieldnames')
+print(fieldnames)
 
+if not os.path.isdir(args.output_directory):
+    #make sure output_directory isn't a file
+    assert(not os.path.exists(args.output_directory))
+    os.mkdir(args.output_directory)
+    assert(os.path.isdir(args.output_directory))
+
+
+
+parsed_peptide_rows = []
+rows_no_parsed_peptide = []
+for row in rows:
+    parsed_peptide_rows.append({'peptide': parse_peptide(row[arg.peptide_column], peptide_regex, ptm_removal_regex), 'label': int(row[args.label_column]), 'score': float(row[arg.score_column])})
+    rows_no_parsed_peptide.append({'peptide': row[arg.peptide_column], 'label': int(row[args.label_column]), 'score': float(row[arg.score_column])})
+
+#FDR with parsing
+fdr_with_parsing_indices = fdr_cutoff(parsed_peptide_rows, args.threshold, args.score_direction, CutoffType.FDR)
+fdr_with_parsing_rows = [rows[i] for i in fdr_with_parsing_indices]
+#Q-value with parsing
+q_value_with_parsing_indices = fdr_cutoff(parsed_peptide_rows, args.threshold, args.score_direction, CutoffType.Q_VALUE)
+q_value_with_parsing_rows = [rows[i] for i in q_value_with_parsing_indices]
+#FDR without parsing
+fdr_no_parsing_indices = fdr_cutoff(rows_no_parsed_peptide, args.threshold, args.score_direction, CutoffType.FDR)
+fdr_no_parsing_rows = [rows[i] for i in fdr_no_parsing_indices]
+#Q-value without parsing
+q_value_no_parsing_indices = fdr_cutoff(rows_no_parsed_peptide, args.threshold, args.score_direction, CutoffType.Q_VALUE)
+q_value_no_parsing_rows = [rows[i] for i in q_value_no_parsing_indices]
+
+def write_rows(rows, fieldnames, output_path):
+    with open(output_path, 'w+') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter='\t')
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+write_rows(fdr_with_parsing_rows, fieldnames, os.path.join(args.output_directory, 'fdr_with_parsing.txt'))
+write_rows(q_value_with_parsing_rows, fieldnames, os.path.join(args.output_directory, 'q_value_with_parsing.txt'))
+write_rows(fdr_no_parsing_rows, fieldnames, os.path.join(args.output_directory, 'fdr_no_parsing.txt'))
+write_rows(q_value_no_parsing_rows, fieldnames, os.path.join(args.output_directory, 'q_value_no_parsing.txt'))
