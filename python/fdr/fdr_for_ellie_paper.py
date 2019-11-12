@@ -1,10 +1,12 @@
-import argparseimport re
+import argparse
+import re
 from enum import Enum
+import os
 import csv
 class CutoffType(Enum):
     Q_VALUE = 1
     FDR = 2
-def fdr_cutoff(entries, cutoff, score_direction, cutoff_type):
+def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = True):
     """
     entries should be a list of dictionaries, each of the form {'score':, 'label':, 'peptide':}
 
@@ -25,7 +27,7 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type):
     peptides = []
     unique_peptide_entries = []
     for x in sorted_entries:        
-        if x['peptide'] not in peptides:
+        if (not peptide_unique) or (x['peptide'] not in peptides):
             peptides.append(x['peptide'])
             unique_peptide_entries.append(x)
     num_targets = 0
@@ -41,20 +43,23 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type):
             fdr = 1.0
         else:
             fdr = 1.0*num_decoys/num_targets
-        if cutoff_type is CutoffType.FDR and fdr >= cutoff:
+        if cutoff_type is CutoffType.FDR and fdr > cutoff:
             break
-        if fdr < cutoff:
+        if fdr <= cutoff:
             cutoff_index = i
     if cutoff_index == -1:
         return []
     else:
         return [x['index']  for x in unique_peptide_entries[0:(cutoff_index + 1)] if x['label'] == 1]
     
-def parse_peptide(peptide, peptide_regex, ptm_removal_regex):
+def parse_peptide(peptide, peptide_regex, ptm_removal_regex = None):
     match = peptide_regex.match(peptide)
     if match and match.group('peptide'):
         matched_peptide = match.group('peptide')
-        return ptm_removal_regex.sub('', matched_peptide)
+        if ptm_removal_regex:
+            return ptm_removal_regex.sub('', matched_peptide)
+        else:
+            return matched_peptide
     else:
         return None
 
@@ -62,12 +67,12 @@ peptide_regex = re.compile('^[A-Z\-]\.(?P<peptide>.*)\.[A-Z\-]$')
 ptm_removal_regex = re.compile('\[[^\]]*\]')
 
 parser = argparse.ArgumentParser(description='Given TSV file(s), a peptide column, score column, score direction, target/decoy column, FDR threshold, and output directory, apply the peptide level FDR threshold with slight variations. The first variant is whether or not to remove PTMs before removing peptide duplicates. The second variant is whether to use the first (FDR) or last threshold crossing (Q-value). Output files should be target rows from input TSV file(s) that pass the FDR/Q-value threshold')
-parser.add_argument('peptide_column', description='Which column contains the peptide')
-parser.add_argument('score_column', description='Which column contains the score')
-parser.add_argument('score_direction', description='+ if a higher score is better, - if a lower score is better', choices=['+', '-'])
-parser.add_argument('label_column', description='Column that indicates if the row is for a target match (is a 1), or a decoy match (is a -1)')
-parser.add_argument('threshold', description='FDR/Q-value cutoff', type=float)
-parser.add_argument('output_directory', description='Where to put the output files')
+parser.add_argument('peptide_column', help='Which column contains the peptide')
+parser.add_argument('score_column', help='Which column contains the score')
+parser.add_argument('score_direction', help='+ if a higher score is better, - if a lower score is better', choices=['+', '-'])
+parser.add_argument('label_column', help='Column that indicates if the row is for a target match (is a 1), or a decoy match (is a -1)')
+parser.add_argument('threshold', help='FDR/Q-value cutoff', type=float)
+parser.add_argument('output_directory', help='Where to put the output files')
 parser.add_argument('input_files', nargs=argparse.REMAINDER)
 
 args = parser.parse_args()
@@ -103,8 +108,17 @@ if not os.path.isdir(args.output_directory):
 parsed_peptide_rows = []
 rows_no_parsed_peptide = []
 for row in rows:
-    parsed_peptide_rows.append({'peptide': parse_peptide(row[arg.peptide_column], peptide_regex, ptm_removal_regex), 'label': int(row[args.label_column]), 'score': float(row[arg.score_column])})
-    rows_no_parsed_peptide.append({'peptide': row[arg.peptide_column], 'label': int(row[args.label_column]), 'score': float(row[arg.score_column])})
+    parsed_peptide_rows.append({'peptide': parse_peptide(row[args.peptide_column], peptide_regex, ptm_removal_regex), 'label': int(row[args.label_column]), 'score': float(row[args.score_column])})
+    rows_no_parsed_peptide.append({'peptide': parse_peptide(row[args.peptide_column], peptide_regex), 'label': int(row[args.label_column]), 'score': float(row[args.score_column])})
+
+
+#PSM level FDR
+psm_fdr_indices = fdr_cutoff(rows_no_parsed_peptide, args.threshold, args.score_direction, CutoffType.FDR, False)
+psm_fdr_rows = [rows[i] for i in psm_fdr_indices]
+
+psm_q_value_indices = fdr_cutoff(rows_no_parsed_peptide, args.threshold, args.score_direction, CutoffType.FDR, False)
+psm_q_value_rows = [rows[i] for i in psm_q_value_indices]
+
 
 #FDR with parsing
 fdr_with_parsing_indices = fdr_cutoff(parsed_peptide_rows, args.threshold, args.score_direction, CutoffType.FDR)
@@ -126,6 +140,8 @@ def write_rows(rows, fieldnames, output_path):
         for row in rows:
             writer.writerow(row)
 write_rows(fdr_with_parsing_rows, fieldnames, os.path.join(args.output_directory, 'fdr_with_parsing.txt'))
+write_rows(psm_fdr_rows, fieldnames, os.path.join(args.output_directory, 'psm_fdr.txt'))
+write_rows(psm_q_value_rows, fieldnames, os.path.join(args.output_directory, 'psm_q_value.txt'))
 write_rows(q_value_with_parsing_rows, fieldnames, os.path.join(args.output_directory, 'q_value_with_parsing.txt'))
 write_rows(fdr_no_parsing_rows, fieldnames, os.path.join(args.output_directory, 'fdr_no_parsing.txt'))
 write_rows(q_value_no_parsing_rows, fieldnames, os.path.join(args.output_directory, 'q_value_no_parsing.txt'))
