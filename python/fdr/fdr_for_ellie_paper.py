@@ -44,15 +44,15 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = T
     num_targets = 0
     num_decoys = 1
     indices = []
+    temp_indices = []
     for score, group in itertools.groupby(unique_peptide_entries, key=lambda x: float(x['score'])):
         group_list = list(group)
-        print('group list')
-        print(group_list)
         for entry in group_list:
             if entry['label'] == -1:
                 num_decoys += 1
             elif entry['label'] == 1:
                 num_targets += 1
+                temp_indices.append(entry['index'])
             else:
                 print('label needs to be 1 or -1')
                 assert(False)
@@ -63,10 +63,9 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = T
         if cutoff_type is CutoffType.FDR and fdr >= cutoff and num_decoys > 1:
             print('breaking out')
             break
-        if fdr < cutoff:
-            for entry in group_list:
-                if entry['label'] == 1:
-                    indices.append(entry['index'])
+        if fdr <= cutoff:
+            indices.extend(temp_indices)
+            temp_indices = []
     return indices
 """
     num_targets = 0
@@ -86,8 +85,7 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = T
         if cutoff_type is CutoffType.FDR and fdr >= cutoff:
             print('breaking out')
             break
-        if fdr < cutoff:
-            cutoff_index = i
+        if fdr < cutoff:            cutoff_index = i
     print('num_targets: %d' % num_targets)
     print('num decoys: %d' % num_decoys)
     print('cutoff index: %d' % cutoff_index)
@@ -118,7 +116,7 @@ parser.add_argument('label_column', help='Column that indicates if the row is fo
 parser.add_argument('threshold', help='FDR/Q-value cutoff', type=float)
 parser.add_argument('output_directory', help='Where to put the output files')
 parser.add_argument('input_file', help='Combined targets/decoys file. Or, if seperated, specify a decoys file and treat this as targets')
-parser.add_argument('--decoy_input_file')
+parser.add_argument('--decoy_input_file', help='If decoys seperate from targets (like in Percolator output), set this to the decoy file.')
 
 args = parser.parse_args()
 fieldnames = None
@@ -130,7 +128,8 @@ if args.decoy_input_file:
     input_files.append(args.decoy_input_file)
     need_label_column = False
     args.label_column = 'label'
-
+print('input_files')
+print(input_files)
 for input_file in input_files:
     with open(input_file, 'r') as f:
         reader = csv.DictReader(f, delimiter='\t')
@@ -155,6 +154,9 @@ for input_file in input_files:
 assert(fieldnames)
 print('fieldnames')
 print(fieldnames)
+if args.decoy_input_file:
+    print('adding label to fieldnames')
+    fieldnames.add('label')
 
 if not os.path.isdir(args.output_directory):
     #make sure output_directory isn't a file
