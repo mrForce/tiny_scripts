@@ -53,6 +53,7 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = T
         if fdr < cutoff:
             cutoff_index = i
     print('num_targets: %d' % num_targets)
+    print('num decoys: %d' % num_decoys)
     print('cutoff index: %d' % cutoff_index)
     if cutoff_index == -1:
         return []
@@ -62,13 +63,12 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = T
 def parse_peptide(peptide, peptide_regex, ptm_removal_regex = None):
     match = peptide_regex.match(peptide)
     if match and match.group('peptide'):
-        matched_peptide = match.group('peptide')
-        if ptm_removal_regex:
-            return ptm_removal_regex.sub('', matched_peptide)
-        else:
-            return matched_peptide
+        peptide = match.group('peptide')
+    if ptm_removal_regex:
+        return ptm_removal_regex.sub('', peptide)
     else:
-        return None
+        return peptide
+
 
 peptide_regex = re.compile('^[A-Z\-]\.(?P<peptide>.*)\.[A-Z\-]$')
 ptm_removal_regex = re.compile('\[[^\]]*\]')
@@ -95,6 +95,8 @@ for input_file in args.input_files:
             fieldnames = set(reader.fieldnames)
             assert(fieldnames)
         for row in reader:
+            if args.peptide_column not in row or args.score_column not in row or args.label_column not in row or row[args.label_column] not in ['1', '-1']:
+                print(row)
             assert(args.peptide_column in row)
             assert(args.score_column in row)
             assert(args.label_column in row)
