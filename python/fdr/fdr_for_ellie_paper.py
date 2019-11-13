@@ -1,5 +1,6 @@
 import argparse
 import re
+import itertools
 from enum import Enum
 import os
 import csv
@@ -12,6 +13,10 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = T
 
     label is -1 for decoy, 1 for target
     """
+
+    #Actually, first sort so decoys are before targets. That way if they score the same, the decoy will be included in the FDR/Q-value calculation.
+    #entries = sorted(entries, key=lambda x: int(x['label']))
+    
     #first, sort by score in descending order if score_direction is +, ascending order if score_direction is -
     assert(score_direction in ['+', '-'])
     assert(cutoff_type is CutoffType.Q_VALUE or cutoff_type is CutoffType.FDR)
@@ -25,16 +30,47 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = T
         print('forward order')
         sorted_entries = sorted(entries, key=lambda x: float(x['score']))
     assert(sorted_entries)
+    
     #if a peptide has multiple entries, take the one with the best score
     peptides = []
     unique_peptide_entries = []
-    
+    #assert(len(sorted_entries) > len(set([x['peptide'] for x in sorted_entries])))
     for x in sorted_entries:        
         if (not peptide_unique) or (x['peptide'] not in peptides):
             peptides.append(x['peptide'])
             unique_peptide_entries.append(x)
+    if peptide_unique:
+        assert(len(unique_peptide_entries) == len(set([x['peptide'] for x in unique_peptide_entries])))
     num_targets = 0
-    num_decoys = 0
+    num_decoys = 1
+    indices = []
+    for score, group in itertools.groupby(unique_peptide_entries, key=lambda x: float(x['score'])):
+        group_list = list(group)
+        print('group list')
+        print(group_list)
+        for entry in group_list:
+            if entry['label'] == -1:
+                num_decoys += 1
+            elif entry['label'] == 1:
+                num_targets += 1
+            else:
+                print('label needs to be 1 or -1')
+                assert(False)
+        if num_targets == 0:
+            fdr = 1.0
+        else:
+            fdr = 1.0*num_decoys/num_targets
+        if cutoff_type is CutoffType.FDR and fdr >= cutoff and num_decoys > 1:
+            print('breaking out')
+            break
+        if fdr < cutoff:
+            for entry in group_list:
+                if entry['label'] == 1:
+                    indices.append(entry['index'])
+    return indices
+"""
+    num_targets = 0
+    num_decoys = 1
     cutoff_index = -1
     print('length of unique_peptide_entries: %d', len(unique_peptide_entries))
     for i in range(0, len(unique_peptide_entries)):
@@ -59,6 +95,7 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = T
         return []
     else:
         return [x['index']  for x in unique_peptide_entries[0:(cutoff_index + 1)] if x['label'] == 1]
+"""
     
 def parse_peptide(peptide, peptide_regex, ptm_removal_regex = None):
     match = peptide_regex.match(peptide)
@@ -80,12 +117,21 @@ parser.add_argument('score_direction', help='+ if a higher score is better, - if
 parser.add_argument('label_column', help='Column that indicates if the row is for a target match (is a 1), or a decoy match (is a -1)')
 parser.add_argument('threshold', help='FDR/Q-value cutoff', type=float)
 parser.add_argument('output_directory', help='Where to put the output files')
-parser.add_argument('input_files', nargs=argparse.REMAINDER)
+parser.add_argument('input_file', help='Combined targets/decoys file. Or, if seperated, specify a decoys file and treat this as targets')
+parser.add_argument('--decoy_input_file')
 
 args = parser.parse_args()
 fieldnames = None
 rows = []
-for input_file in args.input_files:
+input_files = [args.input_file]
+need_label_column = True
+on_decoy_file = False
+if args.decoy_input_file:
+    input_files.append(args.decoy_input_file)
+    need_label_column = False
+    args.label_column = 'label'
+
+for input_file in input_files:
     with open(input_file, 'r') as f:
         reader = csv.DictReader(f, delimiter='\t')
         if fieldnames:
@@ -95,13 +141,17 @@ for input_file in args.input_files:
             fieldnames = set(reader.fieldnames)
             assert(fieldnames)
         for row in reader:
-            if args.peptide_column not in row or args.score_column not in row or args.label_column not in row or row[args.label_column] not in ['1', '-1']:
-                print(row)
             assert(args.peptide_column in row)
             assert(args.score_column in row)
-            assert(args.label_column in row)
-            assert(row[args.label_column] in ['1', '-1'])
-            rows.append(row)
+            row_copy = dict(row)
+            if need_label_column:
+                assert(args.label_column in row)
+                assert(row[args.label_column] in ['1', '-1'])
+            else:
+                row_copy['label'] = -1 if on_decoy_file else 1
+            rows.append(row_copy)
+    if not need_label_column:
+        on_decoy_file = True
 assert(fieldnames)
 print('fieldnames')
 print(fieldnames)
