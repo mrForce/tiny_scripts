@@ -19,13 +19,16 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = T
         entries[i]['index'] = i
     sorted_entries = []
     if score_direction == '+':
+        print('reverse order')
         sorted_entries = sorted(entries, key=lambda x: float(x['score']), reverse=True)
     elif score_direction == '-':
+        print('forward order')
         sorted_entries = sorted(entries, key=lambda x: float(x['score']))
     assert(sorted_entries)
     #if a peptide has multiple entries, take the one with the best score
     peptides = []
     unique_peptide_entries = []
+    
     for x in sorted_entries:        
         if (not peptide_unique) or (x['peptide'] not in peptides):
             peptides.append(x['peptide'])
@@ -33,6 +36,7 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = T
     num_targets = 0
     num_decoys = 0
     cutoff_index = -1
+    print('length of unique_peptide_entries: %d', len(unique_peptide_entries))
     for i in range(0, len(unique_peptide_entries)):
         entry = unique_peptide_entries[i]
         if entry['label'] == -1:
@@ -43,10 +47,13 @@ def fdr_cutoff(entries, cutoff, score_direction, cutoff_type, peptide_unique = T
             fdr = 1.0
         else:
             fdr = 1.0*num_decoys/num_targets
-        if cutoff_type is CutoffType.FDR and fdr > cutoff:
+        if cutoff_type is CutoffType.FDR and fdr >= cutoff:
+            print('breaking out')
             break
-        if fdr <= cutoff:
+        if fdr < cutoff:
             cutoff_index = i
+    print('num_targets: %d' % num_targets)
+    print('cutoff index: %d' % cutoff_index)
     if cutoff_index == -1:
         return []
     else:
@@ -113,10 +120,11 @@ for row in rows:
 
 
 #PSM level FDR
+print('psm fdr')
 psm_fdr_indices = fdr_cutoff(rows_no_parsed_peptide, args.threshold, args.score_direction, CutoffType.FDR, False)
 psm_fdr_rows = [rows[i] for i in psm_fdr_indices]
-
-psm_q_value_indices = fdr_cutoff(rows_no_parsed_peptide, args.threshold, args.score_direction, CutoffType.FDR, False)
+print('psm q value')
+psm_q_value_indices = fdr_cutoff(rows_no_parsed_peptide, args.threshold, args.score_direction, CutoffType.Q_VALUE, False)
 psm_q_value_rows = [rows[i] for i in psm_q_value_indices]
 
 
