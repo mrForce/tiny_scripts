@@ -2,6 +2,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import csv
 import math
+import argparse
+
 def plot_pvals(pvals):
     #plog log10 of p-value rank on x-axis, and 
     sorted_pvals = sorted(pvals)
@@ -19,7 +21,11 @@ def plot_pvals(pvals):
     ax.plot([min_, 0.0], [min_ + math.log10(0.5), math.log10(0.5)], 'k--')
 
 
-tide_search_results = 'pvals_test.txt'
+parser = argparse.ArgumentParser()
+parser.add_argument('tide_search_results')
+args = parser.parse_args()
+
+tide_search_results = args.tide_search_results
 
 
 
