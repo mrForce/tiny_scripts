@@ -5,8 +5,14 @@ import csv
 import math
 import argparse
 
-def plot_pvals(pvals, fig, ax):
-    #plog log10 of p-value rank on x-axis, and 
+
+
+def plot_pvals(pvals, sidak_correction, fig, ax):
+    #plog log10 of p-value rank on x-axis, and
+    if sidak_correction:
+        pvals = [1.0 - math.pow(1.0 - p, n) for p, n in pvals]
+    else:
+        pvals = [p for p, n in pvals]
     sorted_pvals = sorted(pvals)
     log_pvals = [math.log10(x) for x in sorted_pvals]
     num_pvals = len(log_pvals)
@@ -28,16 +34,16 @@ args = parser.parse_args()
 
 tide_search_results = args.tide_search_results
 
-
+sidak_correction = True
 
 with open(tide_search_results, 'r') as f:
     reader = csv.DictReader(f, delimiter='\t')
     pvals = []
     for x in reader:
-        pvals.append(float(x['exact p-value']))
+        pvals.append((float(x['exact p-value']), float(x['distinct matches/spectrum'])))
+
     fig = Figure()
     ax = fig.subplots()
     
-    plot_pvals(pvals, fig, ax)
-    fig.savefig(args.output_image, format='png')
-        
+    plot_pvals(pvals, sidak_correction, fig, ax)
+    fig.savefig(args.output_image, format='png')        
