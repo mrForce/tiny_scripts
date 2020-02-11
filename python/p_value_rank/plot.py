@@ -4,6 +4,7 @@ from matplotlib.figure import Figure
 import csv
 import math
 import argparse
+import random
 
 
 
@@ -30,18 +31,35 @@ def plot_pvals(pvals, sidak_correction, fig, ax):
 parser = argparse.ArgumentParser()
 parser.add_argument('tide_search_results')
 parser.add_argument('output_image')
+parser.add_argument('mode', choices=['sidak', 'random'])
 args = parser.parse_args()
 
 tide_search_results = args.tide_search_results
 
-sidak_correction = True
-
+#if mode is 'random', then for each spectra, use a random match
+#if mode is 'sidak', then use min p-value and correct with Sidak corrections
+mode = args.mode
+spectra_id_field = 'scan'
+spectra_dict = {}
 with open(tide_search_results, 'r') as f:
     reader = csv.DictReader(f, delimiter='\t')
-    pvals = []
     for x in reader:
-        pvals.append((float(x['exact p-value']), float(x['distinct matches/spectrum'])))
-
+        scan = x[spectra_id_field]
+        if scan in spectra_dict:
+            assert(spectra_dict[scan]['n'] == x['distinct matches/spectrum'])
+            spectra_dict[scan]['pvals'].append(float(x['exact p-value']))
+        else:
+            spectra_dict[scan]['pvals'] = [float(x['exact p-value'])]
+            spectra_dict[scan]['n'] = x['distinct matches/spectrum']
+    
+    pvals = []
+    for scan, val in spectra_dict.items():
+        pval = None
+        if mode == 'sidak':
+            pval = min(val['pvals'])
+        elif mode == 'random':
+            pval = random.choice(val['pvals'])
+        pvals.append((pval, float(val['n'])))
     fig = Figure()
     ax = fig.subplots()
     
