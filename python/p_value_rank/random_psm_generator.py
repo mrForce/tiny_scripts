@@ -34,6 +34,8 @@ args = parser.parse_args()
 spectra_reader = mgf.read(args.spectra)
 #map the spectra scan to mass.
 spectra = {}
+bar = progressbar.ProgressBar(max_value=progressbar.UnknownLength)
+i = 0
 for x in spectra_reader:
     params = x['params']
     scan = None
@@ -51,7 +53,8 @@ for x in spectra_reader:
     mass = mass_to_charge*charge
     assert(scan not in spectra)
     spectra[scan] = mass
-
+    i += 1
+    bar.update(i)
     
 peptides_with_mass = {}
 
