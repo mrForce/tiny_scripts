@@ -7,6 +7,7 @@ import csv
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
 from Bio.Alphabet import IUPAC
+import progressbar
 def get_window(mass, window):
     return (mass/(1. + window/10**6), mass/(1.0 - window/10**6))
 
@@ -34,6 +35,7 @@ args = parser.parse_args()
 spectra_reader = mgf.read(args.spectra)
 #map the spectra scan to mass.
 spectra = {}
+print('reading spectra')
 for x in spectra_reader:
     params = x['params']
     scan = None
@@ -55,6 +57,7 @@ for x in spectra_reader:
     
 peptides_with_mass = {}
 
+print('reading peptides')
 with open(args.peptides, 'r') as f:
     for line in f:
         line = line.strip()
@@ -74,17 +77,29 @@ masses = [x[1] for x in peptide_mass_list]
 window = 50.0
 psms = []
 peptide_to_spectra = {}
+print('going to match spectra to peptide')
+bar = progressbar.ProgressBar(max_value=len(spectra.items()))
+i = 0
+j = 0
 for scan, mass in spectra.items():
     min_mass, max_mass = get_window(mass, window)
-    min_index, max_index = get_mass_indices(masses, min_mass, max_mass)
-    #exclusive on the end, as it should be
-    index = random.randrange(min_index, max_index)
-    peptide = peptides[index] 
-    #psms.append({'scan': scan, 'scanMass': mass, 'peptide': peptide, 'peptideMass': masses[index]})
-    if peptide in peptide_to_spectra:
-        peptide_to_spectra[peptide]['scans'].append({'scan': scan, 'scanMass': mass})
-    else:
-        peptide_to_spectra[peptide] = {'scans': [{'scan': scan, 'scanMass': mass}], 'peptideMass': masses[index]}
+    if min_mass <= masses[-1] or max_mass >= masses[0]:
+        min_index, max_index = get_mass_indices(masses, min_mass, max_mass)
+        if min_index < max_index:
+            print('min mass: %f, max mass: %f' % (min_mass, max_mass))
+            print('mass before min index: %f' % masses[min_index - 1])
+        else:
+            j += 1
+            #exclusive on the end, as it should be
+            index = random.randrange(min_index, max_index)
+            peptide = peptides[index] 
+            #psms.append({'scan': scan, 'scanMass': mass, 'peptide': peptide, 'peptideMass': masses[index]})
+            if peptide in peptide_to_spectra:
+                peptide_to_spectra[peptide]['scans'].append({'scan': scan, 'scanMass': mass})
+            else:
+                peptide_to_spectra[peptide] = {'scans': [{'scan': scan, 'scanMass': mass}], 'peptideMass': masses[index]}
+    i += 1
+    bar.update(i)
 """
 with open(args.spectra_pairing, 'w') as f:
     writer = csv.DictWriter(f, fieldnames= ['scan', 'scanMass', 'peptide', 'peptideMass'], delimiter='\t')
