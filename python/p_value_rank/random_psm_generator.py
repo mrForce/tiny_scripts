@@ -96,10 +96,11 @@ for scan, mass in spectra.items():
     if min_mass <= masses[-1] or max_mass >= masses[0]:
         min_index, max_index = get_mass_indices(masses, min_mass, max_mass)
         if min_index < max_index:
+            print('Num choices for spectrum %s is %d' % (str(scan), max_index - min_index))
             j += 1
             #exclusive on the end, as it should be
             index = random.randrange(min_index, max_index)
-            peptide = peptides[index] 
+            peptide = peptides[index]
             #psms.append({'scan': scan, 'scanMass': mass, 'peptide': peptide, 'peptideMass': masses[index]})
             if peptide in peptide_to_spectra:
                 peptide_to_spectra[peptide]['scans'].append({'scan': scan, 'scanMass': mass})
