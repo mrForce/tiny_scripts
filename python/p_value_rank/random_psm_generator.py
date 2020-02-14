@@ -37,7 +37,6 @@ spectra_reader = mgf.read(args.spectra)
 spectra = {}
 
 print('reading spectra')
-
 for x in spectra_reader:
     params = x['params']
     scan = None
@@ -55,8 +54,7 @@ for x in spectra_reader:
     mass = mass_to_charge*charge
     assert(scan not in spectra)
     spectra[scan] = mass
-    i += 1
-    bar.update(i)
+
     
 peptides_with_mass = {}
 
