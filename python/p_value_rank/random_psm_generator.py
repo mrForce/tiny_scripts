@@ -10,7 +10,8 @@ from Bio import SeqIO
 from Bio.Alphabet import IUPAC
 import progressbar
 def get_window(mass, window):
-    return (mass/(1. + window/10**6), mass/(1.0 - window/10**6))
+    return (mass - window, mass + window)
+    #return (mass/(1. + window/10**6), mass/(1.0 - window/10**6))
 
 def get_mass_indices(masses, min_mass, max_mass):
     """
@@ -75,8 +76,8 @@ peptide_mass_list.sort(key=lambda x: x[1])
 
 peptides = [x[0] for x in peptide_mass_list]
 masses = [x[1] for x in peptide_mass_list]
-#default is a window of 50 PPM
-window = 50.0
+#default is a window of +- 3 Da
+window = 3.0
 psms = []
 peptide_to_spectra = {}
 print('going to match spectra to peptide')
