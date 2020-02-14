@@ -109,7 +109,7 @@ with open(args.spectra_pairing, 'w') as f:
 peptide_records = []
 i = 1
 for peptide, value in peptide_to_spectra.items():
-    description = 'peptide mass: %f, ' + ', '.join(['scan %d, mass %f' % (x['scan'], x['scanMass']) for x in value['scans']])
+    description = 'peptide mass: %f, ' + ', '.join(['scan %s, mass %f' % (str(x['scan']), x['scanMass']) for x in value['scans']])
     record = SeqRecord(Seq(peptide, IUPAC.protein), id = str(i), description = description)
     peptide_records.append(record)
     i += 1
