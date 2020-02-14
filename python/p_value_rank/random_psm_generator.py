@@ -9,6 +9,8 @@ from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.Alphabet import IUPAC
 import progressbar
+
+
 def get_window(mass, window):
     return (mass - window, mass + window)
     #return (mass/(1. + window/10**6), mass/(1.0 - window/10**6))
@@ -40,6 +42,8 @@ spectra = {}
 
 print('reading spectra')
 i = 1
+
+proton_mass = 1.00727646677
 for x in spectra_reader:
     params = x['params']
     scan = None
@@ -51,11 +55,12 @@ for x in spectra_reader:
     assert(scan not in spectra)
     assert('pepmass' in params)
     assert('charge' in params)
-    #This is confusing: apparently the PEPMASS field is m/z of precursor, so we should multiply by the charge to get the precursor mass
+    #This is confusing: apparently the PEPMASS field is m/z of precursor, so we should multiply by the charge to get the precursor mass.
     mass_to_charge = params['pepmass'][0]
     assert(len(params['charge']) == 1)
     charge = params['charge'][0]
-    mass = mass_to_charge*charge
+    
+    mass = (mass_to_charge - proton_mass)*charge
     assert(scan not in spectra)
     spectra[scan] = mass
     i += 1
