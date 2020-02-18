@@ -7,18 +7,19 @@ import csv
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 from Bio import SeqIO
+import math
 from Bio.Alphabet import IUPAC
 import progressbar
 import networkx as nx
 
 def compute_chromatic(masses, window):
-    G = nx.graph()
+    G = nx.Graph()
     for i in range(0, len(masses)):
         G.add_node(i)
     for i in range(0, len(masses)):
         for j in range(i + 1, len(masses)):
-            if math.abs(masses[j] - masses[i]) <= window*2.0:
-                G.add_edge((i, j))
+            if abs(masses[j] - masses[i]) <= window*2.0:
+                G.add_edge(i, j)
             else:
                 break
     assert(nx.is_chordal(G))
@@ -125,7 +126,7 @@ for scan, mass in spectra.items():
     i += 1
     bar.update(i)
 print('scans with a matching peptide: %d, out of %d scans' % (j, i))
-print('chromatic number: %d' % compute_chromatic(sorted(spectra.values()), window))
+#print('chromatic number: %d' % compute_chromatic(sorted(spectra.values()), window))
 """
 with open(args.spectra_pairing, 'w') as f:
     writer = csv.DictWriter(f, fieldnames= ['scan', 'scanMass', 'peptide', 'peptideMass'], delimiter='\t')

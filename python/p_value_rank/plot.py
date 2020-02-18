@@ -41,6 +41,7 @@ tide_search_results = args.tide_search_results
 mode = args.mode
 spectra_id_field = 'scan'
 spectra_dict = {}
+sidak_correction = mode == 'sidak'
 with open(tide_search_results, 'r') as f:
     reader = csv.DictReader(f, delimiter='\t')
     for x in reader:
@@ -49,6 +50,7 @@ with open(tide_search_results, 'r') as f:
             assert(spectra_dict[scan]['n'] == x['distinct matches/spectrum'])
             spectra_dict[scan]['pvals'].append(float(x['exact p-value']))
         else:
+            spectra_dict[scan] = {}
             spectra_dict[scan]['pvals'] = [float(x['exact p-value'])]
             spectra_dict[scan]['n'] = x['distinct matches/spectrum']
     
@@ -63,5 +65,5 @@ with open(tide_search_results, 'r') as f:
     fig = Figure()
     ax = fig.subplots()
     
-    plot_pvals(pvals, sidak_correction, fig, ax)
+    plot_pvals(pvals, sidak_correction , fig, ax)
     fig.savefig(args.output_image, format='png')        
