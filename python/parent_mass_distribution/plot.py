@@ -29,7 +29,7 @@ for name, mgf_set in mgf_sets.items():
         f = open(mgf_file, 'r')
         spec_iter = mgf.MGF(f)
         for x in spec_iter:
-            masses.append(x['params']['pepmass'][0])
+            masses.append(x['params']['pepmass'][0]*x['params']['charge'][0])
     mass_sets[name] = masses
 
     
