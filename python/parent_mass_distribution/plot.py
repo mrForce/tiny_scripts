@@ -13,6 +13,16 @@ args = parser.parse_args()
 
 mgf_sets = {}
 
+def create_hist(data, num_bins, min_mass, max_mass):
+    hist, bin_edges = np.histogram(data, bins=num_bins, range=(1.0*min_mass, 1.0*max_mass))
+    bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
+    #current area under the curve, divide by it to normalize.
+    auc = np.trapz(hist, bin_centers)
+    normalized = hist/auc
+    print('AUC after normalization: {}'.format(np.trapz(normalized, bin_centers)))
+    return (hist/auc, bin_centers)
+
+
 for file_path in args.files:
     with open(file_path, 'r') as f:
         name = f.readline().strip()
@@ -35,33 +45,52 @@ for name, mgf_set in mgf_sets.items():
         mgf_masses = []
         for x in spec_iter:
             mgf_masses.append(x['params']['pepmass'][0]*x['params']['charge'][0])
-        masses.append(mgf_masses)
+        masses.append({'masses': mgf_masses, 'mgf_file_name': os.path.basename(mgf_file)})
     mass_sets[name] = masses
 
-min_mass = int(min([min(itertools.chain(*x)) for x in mass_sets.values()]))
-max_mass = math.ceil(max([max(itertools.chain(*x)) for x in mass_sets.values()]))
+min_mass = int(min([min(itertools.chain.from_iterable([y['masses'] for y in x])) for x in mass_sets.values()]))
+max_mass = math.ceil(max([max(itertools.chain.from_iterable([y['masses'] for y in x])) for x in mass_sets.values()]))
 print('min mass {}'.format(min_mass))
 print('max mass {}'.format(max_mass))
 num_bins = math.ceil((max_mass - min_mass)*1.0/bin_size)
+bin_centers = None
 for name, mgf_set_masses in mass_sets.items():
+    hist_list = {}
     print('plotting')
     for x in mgf_set_masses:
-        hist, bin_edges = np.histogram(x, bins=num_bins, density=True)
-        bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
-        plt.plot(bin_centers, hist)
-    
-    
+        mgf_file_name = x['mgf_file_name']
+        data = x['masses']
+        hist, temp_bin_centers = create_hist(data, num_bins, min_mass, max_mass)
+        hist_list[mgf_file_name] = hist
+        plt.plot(temp_bin_centers, hist)
+        if bin_centers is None:
+            bin_centers = temp_bin_centers
+            print('bin centers')
+            print(bin_centers)
+        else:
+            assert(np.array_equal(bin_centers, temp_bin_centers))
+        print('mgf file name: ' + mgf_file_name)
+        print(hist)
+    for i in range(0, len(bin_centers)):
+        print('bin center: {}'.format(bin_centers[i]))
+        bin_heights = [(k, v[i]) for k, v in hist_list.items()]
+        sorted_bin_heights = sorted(bin_heights, reverse=True, key=lambda x: x[1])
+        for k, v in sorted_bin_heights:
+            print('{}: {}'.format(k, v))
+            
     #bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
     #plt.plot(bin_centers, hist.shape[0])
     plt.savefig(os.path.join(args.plot_dir, name + '.png'))
     plt.clf()
 
 for name, mgf_set_masses in mass_sets.items():
-    hist, bin_edges = np.histogram(list(itertools.chain.from_iterable(mgf_set_masses)), bins = num_bins, density=True)
-    bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
+    hist, bin_centers = create_hist(list(itertools.chain.from_iterable([x['masses'] for x in mgf_set_masses])), num_bins, min_mass, max_mass)
+    #hist, bin_edges = np.histogram(list(itertools.chain.from_iterable(mgf_set_masses)), bins = num_bins, density=True)
+    #bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
     plt.plot(bin_centers, hist, label=name)
 plt.legend(loc='upper right')
 plt.savefig(os.path.join(args.plot_dir, 'combined.png'))
+    
 """
 nums, bins, patches = plt.hist(list(itertools.chain.from_iterable(mass_sets.values())), label=list(mass_sets.keys()), density=True, bins=num_bins, histtype='step')
 plt.legend(loc='upper right')
