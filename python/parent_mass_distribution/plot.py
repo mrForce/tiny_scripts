@@ -17,10 +17,11 @@ def create_hist(data, num_bins, min_mass, max_mass):
     hist, bin_edges = np.histogram(data, bins=num_bins, range=(1.0*min_mass, 1.0*max_mass))
     bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
     #current area under the curve, divide by it to normalize.
-    auc = np.trapz(hist, bin_centers)
-    normalized = hist/auc
-    print('AUC after normalization: {}'.format(np.trapz(normalized, bin_centers)))
-    return (hist/auc, bin_centers)
+    #auc = np.trapz(hist, bin_centers)
+    auc = 1.0*len(data)
+    normalized = 100.0*hist/auc
+    print('normalized: ' + str(np.sum(normalized)))
+    return (normalized, bin_centers)
 
 
 for file_path in args.files:
