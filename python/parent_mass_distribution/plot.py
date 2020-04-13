@@ -1,4 +1,5 @@
 import argparse
+import csv
 from pyteomics import mgf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,7 +22,7 @@ def create_hist(data, num_bins, min_mass, max_mass):
     auc = 1.0*len(data)
     normalized = 100.0*hist/auc
     print('normalized: ' + str(np.sum(normalized)))
-    return (normalized, bin_centers)
+    return (hist, normalized, bin_centers, bin_edges)
 
 
 for file_path in args.files:
@@ -49,27 +50,35 @@ for name, mgf_set in mgf_sets.items():
         masses.append({'masses': mgf_masses, 'mgf_file_name': os.path.basename(mgf_file)})
     mass_sets[name] = masses
 
-min_mass = int(min([min(itertools.chain.from_iterable([y['masses'] for y in x])) for x in mass_sets.values()]))
-max_mass = math.ceil(max([max(itertools.chain.from_iterable([y['masses'] for y in x])) for x in mass_sets.values()]))
+#min_mass = int(min([min(itertools.chain.from_iterable([y['masses'] for y in x])) for x in mass_sets.values()]))
+#max_mass = math.ceil(max([max(itertools.chain.from_iterable([y['masses'] for y in x])) for x in mass_sets.values()]))
+min_mass = 0
+max_mass = 10000
 print('min mass {}'.format(min_mass))
 print('max mass {}'.format(max_mass))
-num_bins = math.ceil((max_mass - min_mass)*1.0/bin_size)
+num_bins = int((max_mass - min_mass)*1.0/bin_size)
 bin_centers = None
+bin_edges = None
 for name, mgf_set_masses in mass_sets.items():
     hist_list = {}
+    unnormalized_hist_list = {}
     print('plotting')
     for x in mgf_set_masses:
         mgf_file_name = x['mgf_file_name']
         data = x['masses']
-        hist, temp_bin_centers = create_hist(data, num_bins, min_mass, max_mass)
+        unnormalized_hist, hist, temp_bin_centers, temp_bin_edges = create_hist(data, num_bins, min_mass, max_mass)
         hist_list[mgf_file_name] = hist
+        unnormalized_hist_list[mgf_file_name] = unnormalized_hist
         plt.plot(temp_bin_centers, hist)
         if bin_centers is None:
             bin_centers = temp_bin_centers
+            bin_edges = temp_bin_edges
+            assert(len(bin_centers) == num_bins)
             print('bin centers')
             print(bin_centers)
         else:
             assert(np.array_equal(bin_centers, temp_bin_centers))
+            assert(np.array_equal(bin_edges, temp_bin_edges))
         print('mgf file name: ' + mgf_file_name)
         print(hist)
     for i in range(0, len(bin_centers)):
@@ -83,9 +92,20 @@ for name, mgf_set_masses in mass_sets.items():
     #plt.plot(bin_centers, hist.shape[0])
     plt.savefig(os.path.join(args.plot_dir, name + '.png'))
     plt.clf()
-
+    with open(os.path.join(args.plot_dir, name + '.tsv'), 'w') as f:
+        writer = csv.DictWriter(f, fieldnames = ['left', 'center', 'right'] + list(unnormalized_hist_list.keys()), delimiter='\t')
+        writer.writeheader()
+        for i in range(0, num_bins):
+            row = {}
+            row['left'] = bin_edges[i]
+            row['center'] = bin_centers[i]
+            row['right'] = bin_edges[i + 1]
+            for k, v in unnormalized_hist_list.items():
+                row[k] = v
+            writer.writerow(row)
+        
 for name, mgf_set_masses in mass_sets.items():
-    hist, bin_centers = create_hist(list(itertools.chain.from_iterable([x['masses'] for x in mgf_set_masses])), num_bins, min_mass, max_mass)
+    counts, hist, bin_centers, bin_edges = create_hist(list(itertools.chain.from_iterable([x['masses'] for x in mgf_set_masses])), num_bins, min_mass, max_mass)
     #hist, bin_edges = np.histogram(list(itertools.chain.from_iterable(mgf_set_masses)), bins = num_bins, density=True)
     #bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
     plt.plot(bin_centers, hist, label=name)
