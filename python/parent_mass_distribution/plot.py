@@ -101,7 +101,7 @@ for name, mgf_set_masses in mass_sets.items():
             row['center'] = bin_centers[i]
             row['right'] = bin_edges[i + 1]
             for k, v in unnormalized_hist_list.items():
-                row[k] = v
+                row[k] = v[i]
             writer.writerow(row)
         
 for name, mgf_set_masses in mass_sets.items():
