@@ -1,8 +1,10 @@
 import argparse
 import csv
+import sys
 from pyteomics import mgf
 import numpy as np
 import matplotlib.pyplot as plt
+import collections
 import os
 from scipy import stats
 import math
@@ -12,8 +14,10 @@ parser.add_argument('plot_dir', help='Where to save the plots')
 parser.add_argument('files', nargs='+', help='Each file contains a name on the first line, and the remaining lines contain paths to MGF files')
 args = parser.parse_args()
 
-mgf_sets = {}
-
+mgf_sets = []
+#path should be a string, and psm_parent_mass_paths is a dictionary that maps the set name to a path
+MGF = collections.namedtuple('MGF', ['path', 'psm_parent_mass_paths'])
+MGFSet = collections.namedtuple('MGFSet', ['name', 'mgfs', 'psm_parent_names'])
 def create_hist(data, num_bins, min_mass, max_mass):
     hist, bin_edges = np.histogram(data, bins=num_bins, range=(1.0*min_mass, 1.0*max_mass))
     bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
@@ -27,31 +31,19 @@ def create_hist(data, num_bins, min_mass, max_mass):
 
 for file_path in args.files:
     with open(file_path, 'r') as f:
-        name = f.readline().strip()
+        reader = csv.DictReader(f, delimiter='|')
+        headers = list(reader.fieldnames)
+        name = headers[0].strip()
         assert(len(name) > 0)
         assert(name not in mgf_sets)
-        mgf_paths = []
-        for x in f:
-            if len(x.strip()) > 1:
-                mgf_paths.append(x.strip())
-        mgf_sets[name] = mgf_paths
+        mgfs = []
+        for row in reader:
+            mgf_obj = MGF(row[name], {k: row[k] for k in headers[1::]})
+            mgfs.append(mgf_obj)
+        mgf_sets.append(MGFSet(name, mgfs, headers[1::]))
 
-mass_sets = {}
-kernels = {}
 bin_size = 250
-for name, mgf_set in mgf_sets.items():
-    masses = []
-    for mgf_file in mgf_set:
-        f = open(mgf_file, 'r')
-        spec_iter = mgf.MGF(f)
-        mgf_masses = []
-        for x in spec_iter:
-            mgf_masses.append(x['params']['pepmass'][0]*x['params']['charge'][0])
-        masses.append({'masses': mgf_masses, 'mgf_file_name': os.path.basename(mgf_file)})
-    mass_sets[name] = masses
 
-#min_mass = int(min([min(itertools.chain.from_iterable([y['masses'] for y in x])) for x in mass_sets.values()]))
-#max_mass = math.ceil(max([max(itertools.chain.from_iterable([y['masses'] for y in x])) for x in mass_sets.values()]))
 min_mass = 0
 max_mass = 10000
 print('min mass {}'.format(min_mass))
@@ -59,79 +51,65 @@ print('max mass {}'.format(max_mass))
 num_bins = int((max_mass - min_mass)*1.0/bin_size)
 bin_centers = None
 bin_edges = None
-for name, mgf_set_masses in mass_sets.items():
-    hist_list = {}
-    unnormalized_hist_list = {}
-    print('plotting')
-    for x in mgf_set_masses:
-        mgf_file_name = x['mgf_file_name']
-        data = x['masses']
-        unnormalized_hist, hist, temp_bin_centers, temp_bin_edges = create_hist(data, num_bins, min_mass, max_mass)
-        hist_list[mgf_file_name] = hist
-        unnormalized_hist_list[mgf_file_name] = unnormalized_hist
-        plt.plot(temp_bin_centers, hist)
-        if bin_centers is None:
-            bin_centers = temp_bin_centers
-            bin_edges = temp_bin_edges
-            assert(len(bin_centers) == num_bins)
-            print('bin centers')
-            print(bin_centers)
-        else:
-            assert(np.array_equal(bin_centers, temp_bin_centers))
-            assert(np.array_equal(bin_edges, temp_bin_edges))
-        print('mgf file name: ' + mgf_file_name)
-        print(hist)
-    for i in range(0, len(bin_centers)):
-        print('bin center: {}'.format(bin_centers[i]))
-        bin_heights = [(k, v[i]) for k, v in hist_list.items()]
-        sorted_bin_heights = sorted(bin_heights, reverse=True, key=lambda x: x[1])
-        for k, v in sorted_bin_heights:
-            print('{}: {}'.format(k, v))
-            
-    #bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
-    #plt.plot(bin_centers, hist.shape[0])
-    plt.savefig(os.path.join(args.plot_dir, name + '.png'))
-    plt.clf()
+MassHist = collections.namedtuple('MassHist', ['name', 'counts'])
+for mgf_set_object in mgf_sets:
+    name = mgf_set_object.name
+    mgf_objects = mgf_set_object.mgfs
+    psm_parent_names = mgf_set_object.psm_parent_names
+    fieldnames = ['left', 'center', 'right']
+    for mgf_object in mgf_objects:
+        mgf_basename = os.path.basename(mgf_object.path)
+        fieldnames.append(mgf_basename)
+        fieldnames.extend([x + '-' + mgf_basename for x in psm_parent_names])
+    histograms = []
+    for mgf_object in mgf_objects:
+        mgf_basename = os.path.basename(mgf_object.path)
+        mgf_masses = []
+        with open(mgf_object.path, 'r') as g:
+            spec_iter = mgf.MGF(g)
+            for x in spec_iter:
+                mgf_masses.append(x['params']['pepmass'][0]*x['params']['charge'][0])
+        mgf_masses.sort()
+        unnormalized_hist, hist, temp_bin_centers, temp_bin_edges = create_hist(mgf_masses, num_bins, min_mass, max_mass)
+        if bin_centers is None and bin_edges is None:
+            bin_centers = list(temp_bin_centers)
+            bin_edges = list(temp_bin_edges)
+            assert(len(bin_centers) == len(bin_edges))
+        hist = MassHist(mgf_basename, list(unnormalized_hist))
+        histograms.append(hist)
+        for psm_name, psm_mass_path in mgf_object.psm_parent_mass_paths.items():
+            masses = []
+            with open(psm_mass_path, 'r') as g:
+                header = g.readline()
+                print('header for ' + os.path.basename(psm_mass_path) + ': ' + header)
+                for line in g:
+                    if line.strip():
+                        masses.append(float(line.strip()))
+            #Here we need to do a sanity check: Check that, within some tolerance, the masses in the PSMs are a subset of the MGF masses.
+            tolerance = 0.1
+            for mass in masses:
+                is_in = False
+                for mgf_mass in mgf_masses:
+                    if abs(mgf_mass - mass) < tolerance:
+                        is_in = True
+                        break
+                    if mgf_mass > mass:
+                        break
+                assert(is_in)
+            unnormalized_hist, hist, temp_bin_centers, temp_bin_edges = create_hist(masses, num_bins, min_mass, max_mass)
+            histograms.append(MassHist(psm_name + '-' + mgf_basename, list(unnormalized_hist)))
     with open(os.path.join(args.plot_dir, name + '.tsv'), 'w') as f:
-        writer = csv.DictWriter(f, fieldnames = ['left', 'center', 'right'] + list(unnormalized_hist_list.keys()), delimiter='\t')
+        writer = csv.DictWriter(f, fieldnames, delimiter='\t')
         writer.writeheader()
-        for i in range(0, num_bins):
+        for i in range(0, len(bin_centers)):
             row = {}
             row['left'] = bin_edges[i]
             row['center'] = bin_centers[i]
             row['right'] = bin_edges[i + 1]
-            for k, v in unnormalized_hist_list.items():
-                row[k] = v[i]
+            for hist in histograms:
+                row[hist.name] = hist.counts[i]
             writer.writerow(row)
-        
-for name, mgf_set_masses in mass_sets.items():
-    counts, hist, bin_centers, bin_edges = create_hist(list(itertools.chain.from_iterable([x['masses'] for x in mgf_set_masses])), num_bins, min_mass, max_mass)
-    #hist, bin_edges = np.histogram(list(itertools.chain.from_iterable(mgf_set_masses)), bins = num_bins, density=True)
-    #bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
-    plt.plot(bin_centers, hist, label=name)
-plt.legend(loc='upper right')
-plt.savefig(os.path.join(args.plot_dir, 'combined.png'))
-    
-"""
-nums, bins, patches = plt.hist(list(itertools.chain.from_iterable(mass_sets.values())), label=list(mass_sets.keys()), density=True, bins=num_bins, histtype='step')
-plt.legend(loc='upper right')
-plt.savefig(os.path.join(args.plot_dir, 'combined.png'))
 
 
-fig, ax = plt.subplots()
-for name, masses in mass_sets.items():
-    kernel = stats.gaussian_kde(masses)
-    y_points = kernel.evaluate(x_vals)
-    ax.plot(x_vals, y_points, label=name)
-
-plt.legend(loc='upper right')
-plt.savefig(os.path.join(args.plot_dir, 'combined.png'))
-combined_kernels = {k: stats.gaussian_kde(v) for k,v in mass_sets.items()}
-combined_yvals = [(k, v.evaluate(x_vals)) for k,v in combined_kernels.items()]
-plt.plot(x_vals, [x[1] for x in combined_yvals], label=[x[0] for x in combined_yvals])
-plt.savefig(args.plot)
-
-nums, bins, patches = plt.hist(list(mass_sets.values()), label=list(mass_sets.keys()), density=True)
-plt.legend(loc='upper right')
-plt.savefig(args.plot)
-"""
+print('DONE')
+sys.exit()
