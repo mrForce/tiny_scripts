@@ -74,7 +74,7 @@ for mgf_set_object in mgf_sets:
         if bin_centers is None and bin_edges is None:
             bin_centers = list(temp_bin_centers)
             bin_edges = list(temp_bin_edges)
-            assert(len(bin_centers) == len(bin_edges))
+            assert(len(bin_centers) + 1 == len(bin_edges))
         hist = MassHist(mgf_basename, list(unnormalized_hist))
         histograms.append(hist)
         for psm_name, psm_mass_path in mgf_object.psm_parent_mass_paths.items():
@@ -86,7 +86,7 @@ for mgf_set_object in mgf_sets:
                     if line.strip():
                         masses.append(float(line.strip()))
             #Here we need to do a sanity check: Check that, within some tolerance, the masses in the PSMs are a subset of the MGF masses.
-            tolerance = 0.1
+            tolerance = 0.5
             for mass in masses:
                 is_in = False
                 for mgf_mass in mgf_masses:
@@ -94,7 +94,7 @@ for mgf_set_object in mgf_sets:
                         is_in = True
                         break
                     if mgf_mass > mass:
-                        break
+                        break                    
                 assert(is_in)
             unnormalized_hist, hist, temp_bin_centers, temp_bin_edges = create_hist(masses, num_bins, min_mass, max_mass)
             histograms.append(MassHist(psm_name + '-' + mgf_basename, list(unnormalized_hist)))
