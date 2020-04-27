@@ -90,10 +90,10 @@ for mgf_set_object in mgf_sets:
                 assert('spectrum neutral mass' in psm_reader.fieldnames)
                 for row in psm_reader:
                     scan = row['scan']
-                    percolator_mass = row['spectrum neutral mass']
+                    percolator_mass = float(row['spectrum neutral mass'])
                     assert(scan in spectra)
+                    assert(abs(percolator_mass - spectra[scan].PEPMASS) < 1.2)
                     mgf_mass = spectra[scan].PEPMASS*spectra[scan].CHARGE
-                    assert(abs(percolator_mass - mgf_mass) < 1.2)
                     masses.append(mgf_mass)
             unnormalized_hist, hist, temp_bin_centers, temp_bin_edges = create_hist(masses, num_bins, min_mass, max_mass)
             histograms.append(MassHist(psm_name + '-' + mgf_basename, list(unnormalized_hist)))
