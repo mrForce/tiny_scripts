@@ -52,6 +52,7 @@ num_bins = int((max_mass - min_mass)*1.0/bin_size)
 bin_centers = None
 bin_edges = None
 MassHist = collections.namedtuple('MassHist', ['name', 'counts'])
+Spectrum = collections.namedtuple('Spectrum', ['PEPMASS', 'CHARGE'])
 for mgf_set_object in mgf_sets:
     name = mgf_set_object.name
     mgf_objects = mgf_set_object.mgfs
@@ -64,10 +65,14 @@ for mgf_set_object in mgf_sets:
     histograms = []
     for mgf_object in mgf_objects:
         mgf_basename = os.path.basename(mgf_object.path)
+        spectra = {}
         mgf_masses = []
         with open(mgf_object.path, 'r') as g:
             spec_iter = mgf.MGF(g)
             for x in spec_iter:
+                assert('scans' in x['params'])
+                assert(isinstance(x['params']['scans'], str))
+                spectra[x['params']['scans']] = Spectrum(x['params']['pepmass'][0], x['params']['charge'][0])
                 mgf_masses.append(x['params']['pepmass'][0]*x['params']['charge'][0])
         mgf_masses.sort()
         unnormalized_hist, hist, temp_bin_centers, temp_bin_edges = create_hist(mgf_masses, num_bins, min_mass, max_mass)
@@ -80,22 +85,16 @@ for mgf_set_object in mgf_sets:
         for psm_name, psm_mass_path in mgf_object.psm_parent_mass_paths.items():
             masses = []
             with open(psm_mass_path, 'r') as g:
-                header = g.readline()
-                print('header for ' + os.path.basename(psm_mass_path) + ': ' + header)
-                for line in g:
-                    if line.strip():
-                        masses.append(float(line.strip()))
-            #Here we need to do a sanity check: Check that, within some tolerance, the masses in the PSMs are a subset of the MGF masses.
-            tolerance = 0.5
-            for mass in masses:
-                is_in = False
-                for mgf_mass in mgf_masses:
-                    if abs(mgf_mass - mass) < tolerance:
-                        is_in = True
-                        break
-                    if mgf_mass > mass:
-                        break                    
-                assert(is_in)
+                psm_reader = csv.DictReader(g, delimiter='\t')
+                assert('scan' in psm_reader.fieldnames)
+                assert('spectrum neutral mass' in psm_reader.fieldnames)
+                for row in psm_reader:
+                    scan = row['scan']
+                    percolator_mass = row['spectrum neutral mass']
+                    assert(scan in spectra)
+                    mgf_mass = spectra[scan].PEPMASS*spectra[scan].CHARGE
+                    assert(abs(percolator_mass - mgf_mass) < 1.2)
+                    masses.append(mgf_mass)
             unnormalized_hist, hist, temp_bin_centers, temp_bin_edges = create_hist(masses, num_bins, min_mass, max_mass)
             histograms.append(MassHist(psm_name + '-' + mgf_basename, list(unnormalized_hist)))
     with open(os.path.join(args.plot_dir, name + '.tsv'), 'w') as f:
