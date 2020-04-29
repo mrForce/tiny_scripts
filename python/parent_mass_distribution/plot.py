@@ -84,17 +84,34 @@ for mgf_set_object in mgf_sets:
         histograms.append(hist)
         for psm_name, psm_mass_path in mgf_object.psm_parent_mass_paths.items():
             masses = []
+            assert(psm_name.startswith('percolator-') or psm_name.startswith('systemhc-'))
             with open(psm_mass_path, 'r') as g:
                 psm_reader = csv.DictReader(g, delimiter='\t')
-                assert('scan' in psm_reader.fieldnames)
-                assert('spectrum neutral mass' in psm_reader.fieldnames)
-                for row in psm_reader:
-                    scan = row['scan']
-                    percolator_mass = float(row['spectrum neutral mass'])
-                    assert(scan in spectra)
-                    assert(abs(percolator_mass - spectra[scan].PEPMASS) < 1.2)
-                    mgf_mass = spectra[scan].PEPMASS*spectra[scan].CHARGE
-                    masses.append(mgf_mass)
+                if psm_name.startswith('percolator-'):
+                    assert('scan' in psm_reader.fieldnames)
+                    assert('spectrum neutral mass' in psm_reader.fieldnames)
+                    for row in psm_reader:
+                        scan = row['scan']
+                        percolator_mass = float(row['spectrum neutral mass'])
+                        assert(scan in spectra)
+                        assert(abs(percolator_mass - spectra[scan].PEPMASS) < 1.2)
+                        mgf_mass = spectra[scan].PEPMASS*spectra[scan].CHARGE
+                        masses.append(mgf_mass)
+                elif psm_name.startswith('systemhc-'):
+                    assert('PrecMz' in psm_reader.fieldnames)
+                    for row in psm_reader:
+                        in_mgf = False
+                        mass = float(row['PrecMz'])
+                        for scan, spectrum in spectra.items():
+                            mgf_mass = spectrum.PEPMASS*spectrum.CHARGE
+                            if abs(mgf_mass - mass) < 1.2:
+                                in_mgf = True
+                                break
+                        if not in_mgf:
+                            print('Precursor Mz not found in MGF file: ' + row['PrecMz'])
+                            assert(in_mgf)
+                        else:
+                            masses.append(mass)
             unnormalized_hist, hist, temp_bin_centers, temp_bin_edges = create_hist(masses, num_bins, min_mass, max_mass)
             histograms.append(MassHist(psm_name + '-' + mgf_basename, list(unnormalized_hist)))
     with open(os.path.join(args.plot_dir, name + '.tsv'), 'w') as f:
