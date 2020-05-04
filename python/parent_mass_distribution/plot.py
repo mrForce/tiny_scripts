@@ -1,4 +1,5 @@
 import argparse
+import re
 import csv
 import sys
 from pyteomics import mgf
