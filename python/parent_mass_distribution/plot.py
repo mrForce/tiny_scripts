@@ -28,7 +28,7 @@ def create_hist(data, num_bins, min_mass, max_mass):
     print('normalized: ' + str(np.sum(normalized)))
     return (hist, normalized, bin_centers, bin_edges)
 
-
+charge_regex = re.compile('/(?P<charge>[1-9])\s*$')
 for file_path in args.files:
     with open(file_path, 'r') as f:
         reader = csv.DictReader(f, delimiter='|')
@@ -101,17 +101,12 @@ for mgf_set_object in mgf_sets:
                     assert('PrecMz' in psm_reader.fieldnames)
                     for row in psm_reader:
                         in_mgf = False
-                        mass = float(row['PrecMz'])
-                        for scan, spectrum in spectra.items():
-                            mgf_mass = spectrum.PEPMASS*spectrum.CHARGE
-                            if abs(mgf_mass - mass) < 1.2:
-                                in_mgf = True
-                                break
-                        if not in_mgf:
-                            print('Precursor Mz not found in MGF file: ' + row['PrecMz'])
-                            assert(in_mgf)
-                        else:
-                            masses.append(mass)
+                        mz = float(row['PrecMz'])
+                        charge_match = charge_regex.search(row['PeptideIon'])
+                        assert(charge)
+                        charge = int(charge_match.group('charge'))
+                        mass = mz*charge
+                        masses.append(mass)
             unnormalized_hist, hist, temp_bin_centers, temp_bin_edges = create_hist(masses, num_bins, min_mass, max_mass)
             histograms.append(MassHist(psm_name + '-' + mgf_basename, list(unnormalized_hist)))
     with open(os.path.join(args.plot_dir, name + '.tsv'), 'w') as f:
