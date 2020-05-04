@@ -29,7 +29,7 @@ def create_hist(data, num_bins, min_mass, max_mass):
     print('normalized: ' + str(np.sum(normalized)))
     return (hist, normalized, bin_centers, bin_edges)
 
-charge_regex = re.compile('/(?P<charge>[1-9])\s*$')
+charge_regex = re.compile('/(?P<charge>\d)')
 for file_path in args.files:
     with open(file_path, 'r') as f:
         reader = csv.DictReader(f, delimiter='|')
@@ -104,7 +104,8 @@ for mgf_set_object in mgf_sets:
                         in_mgf = False
                         mz = float(row['PrecMz'])
                         charge_match = charge_regex.search(row['PeptideIon'])
-                        assert(charge)
+                        print(row['PeptideIon'])
+                        assert(charge_match)
                         charge = int(charge_match.group('charge'))
                         mass = mz*charge
                         masses.append(mass)
