@@ -201,9 +201,9 @@ def write_rows(rows, fieldnames, output_path):
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
-write_rows(fdr_with_parsing_rows, fieldnames, os.path.join(args.output_directory, 'fdr_with_parsing.txt'))
-write_rows(psm_fdr_rows, fieldnames, os.path.join(args.output_directory, 'psm_fdr.txt'))
-write_rows(psm_q_value_rows, fieldnames, os.path.join(args.output_directory, 'psm_q_value.txt'))
+#write_rows(fdr_with_parsing_rows, fieldnames, os.path.join(args.output_directory, 'fdr_with_parsing.txt'))
+#write_rows(psm_fdr_rows, fieldnames, os.path.join(args.output_directory, 'psm_fdr.txt'))
+#write_rows(psm_q_value_rows, fieldnames, os.path.join(args.output_directory, 'psm_q_value.txt'))
 write_rows(q_value_with_parsing_rows, fieldnames, os.path.join(args.output_directory, 'q_value_with_parsing.txt'))
-write_rows(fdr_no_parsing_rows, fieldnames, os.path.join(args.output_directory, 'fdr_no_parsing.txt'))
+#write_rows(fdr_no_parsing_rows, fieldnames, os.path.join(args.output_directory, 'fdr_no_parsing.txt'))
 write_rows(q_value_no_parsing_rows, fieldnames, os.path.join(args.output_directory, 'q_value_no_parsing.txt'))
