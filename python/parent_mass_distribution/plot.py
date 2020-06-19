@@ -10,12 +10,14 @@ import os
 from scipy import stats
 import math
 import itertools
+csv.field_size_limit(sys.maxsize)
 parser = argparse.ArgumentParser(description='Take MGF files, and plot the parent mass. Pass in arbitrary number of files, each of which contains a name and a bunch of MGF file paths to plot the parent masses of.')
 parser.add_argument('plot_dir', help='Where to save the plots')
 parser.add_argument('files', nargs='+', help='Each file contains a name on the first line, and the remaining lines contain paths to MGF files')
 args = parser.parse_args()
 
 mgf_sets = []
+
 #path should be a string, and psm_parent_mass_paths is a dictionary that maps the set name to a path
 MGF = collections.namedtuple('MGF', ['path', 'psm_parent_mass_paths'])
 MGFSet = collections.namedtuple('MGFSet', ['name', 'mgfs', 'psm_parent_names'])
@@ -44,7 +46,7 @@ for file_path in args.files:
         mgf_sets.append(MGFSet(name, mgfs, headers[1::]))
 
 bin_size = 250
-
+qval_cutoff = 0.01
 min_mass = 0
 max_mass = 10000
 print('min mass {}'.format(min_mass))
@@ -62,7 +64,7 @@ for mgf_set_object in mgf_sets:
     for mgf_object in mgf_objects:
         mgf_basename = os.path.basename(mgf_object.path)
         fieldnames.append(mgf_basename)
-        fieldnames.extend([x + '-' + mgf_basename for x in psm_parent_names])
+        fieldnames.extend([mgf_basename + '-' + x  for x in psm_parent_names])
     histograms = []
     for mgf_object in mgf_objects:
         mgf_basename = os.path.basename(mgf_object.path)
@@ -91,26 +93,26 @@ for mgf_set_object in mgf_sets:
                 if psm_name.startswith('percolator-'):
                     assert('scan' in psm_reader.fieldnames)
                     assert('spectrum neutral mass' in psm_reader.fieldnames)
+                    print('psm mass path: ' + psm_mass_path)
                     for row in psm_reader:
-                        scan = row['scan']
-                        percolator_mass = float(row['spectrum neutral mass'])
-                        assert(scan in spectra)
-                        assert(abs(percolator_mass - spectra[scan].PEPMASS) < 1.2)
-                        mgf_mass = spectra[scan].PEPMASS*spectra[scan].CHARGE
-                        masses.append(mgf_mass)
+                        qval = float(row['percolator q-value'])
+                        if qval <= qval_cutoff:
+                            scan = row['scan']
+                            assert(scan in spectra)
+                            mgf_mass = spectra[scan].PEPMASS*spectra[scan].CHARGE
+                            masses.append(mgf_mass)
                 elif psm_name.startswith('systemhc-'):
                     assert('PrecMz' in psm_reader.fieldnames)
                     for row in psm_reader:
                         in_mgf = False
                         mz = float(row['PrecMz'])
                         charge_match = charge_regex.search(row['PeptideIon'])
-                        print(row['PeptideIon'])
                         assert(charge_match)
                         charge = int(charge_match.group('charge'))
                         mass = mz*charge
                         masses.append(mass)
             unnormalized_hist, hist, temp_bin_centers, temp_bin_edges = create_hist(masses, num_bins, min_mass, max_mass)
-            histograms.append(MassHist(psm_name + '-' + mgf_basename, list(unnormalized_hist)))
+            histograms.append(MassHist(mgf_basename + '-' + psm_name, list(unnormalized_hist)))
     with open(os.path.join(args.plot_dir, name + '.tsv'), 'w') as f:
         writer = csv.DictWriter(f, fieldnames, delimiter='\t')
         writer.writeheader()
