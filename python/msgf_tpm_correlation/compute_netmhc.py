@@ -14,9 +14,15 @@ NETMHC_LOCATION='/home/jforce/Downloads/netMHC-4.0a.Linux/netMHC-4.0/netMHC'
 
 
 
+peptide_regex = re.compile('^[A-Z\-]\.(?P<peptide>.*)\.[A-Z\-]$')
 ptm_removal_regex = re.compile('\[[^\]]*\]')
-def parse_peptide(peptide, ptm_removal_regex):
-    return ptm_removal_regex.sub('', peptide)
+def parse_peptide(peptide, peptide_regex, ptm_removal_regex):
+    match = peptide_regex.match(peptide)
+    if match and match.group('peptide'):
+        matched_peptide = match.group('peptide')
+        return ptm_removal_regex.sub('', matched_peptide)
+    else:
+        return None
 parser = argparse.ArgumentParser(description='Take a list of peptides, and add the NetMHC scores. ')
 parser.add_argument('txt_input')
 parser.add_argument('tsv_output')
@@ -65,21 +71,19 @@ peptides = set()
 with open(args.txt_input, 'r') as f:
     for line in f:
         if len(line.strip()) > 0:
-            peptide = parse_peptide(line.strip(), ptm_removal_regex)
-            print('line')
-            print(line)
+            peptide = parse_peptide(line.strip(), peptide_regex, ptm_removal_regex)
             assert(peptide)
             peptides.add(peptide)
 
 peptide_affinity = {}
 for allele in netmhc_alleles:
-    peptide_affinity[allele] = call_netmhc(peptides, allele)
+    peptide_affinity[allele] = call_netmhc(peptides, allele, args.inverse)
 
 fields = ['peptide'] + netmhc_alleles + ['best']
 
 
 with open(args.tsv_output, 'w') as f:
-    writer = csv.DictWriter(f, fieldnames=fields, delimiter='\t')
+    writer = csv.DictWriter(f, fieldnames=fields)
     writer.writeheader()
     for peptide in list(peptides):
         row = {'peptide': peptide}
