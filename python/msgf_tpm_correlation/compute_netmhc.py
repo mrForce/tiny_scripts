@@ -8,7 +8,7 @@ import csv
 import re
 import subprocess
 
-NETMHC_LOCATION='/home/jforce/Downloads/netMHC-4.0a.Linux/netMHC-4.0/netMHC'
+NETMHC_LOCATION='/home/code/IMPORT/netMHC-4.0/netMHC'
 
 
 
