@@ -2,13 +2,15 @@ import argparse
 import itertools
 import collections
 import mmap
+import os
 WINDOW_SIZE = 4
 ATOM_SIZE = 4
 METADATA_ID = 0X80008000
 parser = argparse.ArgumentParser(description='verify a file')
 parser.add_argument('file')
+parser.add_argument('outputDir')
 args = parser.parse_args()
-
+assert(os.path.isdir(args.outputDir))
 def hasMagic(byteAccess):
     return byteAccess[0] == b'k' and byteAccess[1] == b'y' and byteAccess[2] == b'c' and byteAccess[3] == b'h'
 
@@ -43,7 +45,7 @@ class ByteAndDeck(collections.abc.Sequence):
 
     def toByteArray(self, length):
         #copy first length bytes into a byte array and return.
-        return bytearray(self[0:length])
+        return b''.join(self[0:length])
     
 def toInt(b):
     return int.from_bytes(b, byteorder='big', signed=False)
@@ -114,4 +116,7 @@ def keychainGenerator(byteIterator):
 f = open(args.file, 'rb')
 byteIter = iter(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ))
 keychains = keychainGenerator(byteIter)
-print(next(keychains))
+i = 1
+for keychain in keychains:
+   with open(os.path.join(args.outputDir, str(i) + '.bin'), 'wb') as g:
+       g.write(keychain)
