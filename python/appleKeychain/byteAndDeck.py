@@ -31,11 +31,11 @@ class ByteAndDeck(collections.abc.Sequence):
 
     def toByteArray(self, length):
         #copy first length bytes into a byte array and return.
-        return b''.join(self[0:length])
+        return bytes(self[0:length])
     
 def toInt(b):
-    return int.from_bytes(b, byteorder='big', signed=False)
+    return int.from_bytes(bytes(b), byteorder='big', signed=False)
 def getBytesAsInt(ba, startIndex, k):
     a = ba[startIndex:(startIndex + k)]
     assert(len(a) == k)
-    return toInt(b''.join(a))
+    return toInt(a)

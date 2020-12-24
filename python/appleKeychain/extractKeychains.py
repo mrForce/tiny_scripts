@@ -1,6 +1,7 @@
 import argparse
 import itertools
 import collections
+import sys
 import mmap
 import os
 from byteAndDeck import *
@@ -13,7 +14,7 @@ parser.add_argument('outputDir')
 args = parser.parse_args()
 assert(os.path.isdir(args.outputDir))
 def hasMagic(byteAccess):
-    return byteAccess[0] == b'k' and byteAccess[1] == b'y' and byteAccess[2] == b'c' and byteAccess[3] == b'h'
+    return byteAccess[0] == ord('k') and byteAccess[1] == ord('y') and byteAccess[2] == ord('c') and byteAccess[3] == ord('h')
 
 
 def verifyMetadataRecord(byteAccess, startIndex):
@@ -84,25 +85,43 @@ def extractKeychain(byteAccess):
             length = schemaOffset + schemaSize + 4
             print('length: ' + str(length))
             return byteAccess.toByteArray(length)
-        except:
+        except e:
             print('exception')
+            print(e)
             return None
     else:
         return None
 
 def keychainGenerator(byteIterator):
     byteAccess = ByteAndDeck(byteIterator, WINDOW_SIZE)
+    i = 0
     while len(byteAccess) >= WINDOW_SIZE:
+        if i == 54976512:
+            print(byteAccess.deck)
+        if i % 10**8 == 0:
+            print('i: ' + str(i/(10**8)))
+        i += 1
         if hasMagic(byteAccess):
+            print('found magic')        
             keychain = extractKeychain(byteAccess)
             if keychain:
                 yield keychain
         byteAccess.popleft()
 
+def byteReader(f, chunkSize=8192):
+    while True:
+        chunk = f.read(chunkSize)
+        if chunk:
+            yield from chunk
+        else:
+            break
+        
 f = open(args.file, 'rb')
-byteIter = iter(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ))
+#byteIter = iter(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ))
+byteIter = byteReader(f)
 keychains = keychainGenerator(byteIter)
 i = 1
 for keychain in keychains:
-   with open(os.path.join(args.outputDir, str(i) + '.bin'), 'wb') as g:
-       g.write(keychain)
+    with open(os.path.join(args.outputDir, str(i) + '.bin'), 'wb') as g:
+        g.write(keychain)
+    i += 1
