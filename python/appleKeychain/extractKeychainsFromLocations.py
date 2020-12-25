@@ -10,6 +10,7 @@ ATOM_SIZE = 4
 METADATA_ID = 0X80008000
 parser = argparse.ArgumentParser(description='verify a file')
 parser.add_argument('file')
+parser.add_argument('locsFile')
 parser.add_argument('outputDir')
 args = parser.parse_args()
 assert(os.path.isdir(args.outputDir))
@@ -93,7 +94,7 @@ def extractKeychain(byteAccess):
         return None
 
 """def keychainGenerator(byteIterator):
-    byteAccess = ByteAndDeck(byteIterator, WINDOW_SIZE)
+byteAccess = ByteAndDeck(byteIterator, WINDOW_SIZE)
     i = 0
     while len(byteAccess) >= WINDOW_SIZE:
         if i == 54976512:
@@ -107,18 +108,7 @@ def extractKeychain(byteAccess):
             if keychain:
                 yield keychain
         byteAccess.popleft()
-"""
-def windowKeychainGenerator(byteIterator):
-    while True:
-        c = next(byteIterator)        
-        if c == 107:
-            c = next(byteIterator)
-            if c == 121:
-                c = next(byteIterator)
-                if c == 99:
-                    c = next(byteIterator)
-                    if c == 104:
-                        
+"""                     
 def byteReader(f, chunkSize=8192):
     while True:
         chunk = f.read(chunkSize)
@@ -126,20 +116,27 @@ def byteReader(f, chunkSize=8192):
             yield from chunk
         else:
             break
-        
-f = open(args.file, 'rb')
-byteIter = byteReader(f)
-byteAccess = ByteAndDeck(byteIter, WINDOW_SIZE)
 
-for i in range(0, 50*10**6):
-    #byteAccess.popleft()
-    x = next(byteIter)
-    #x = next(byteAccess)
-print('done')
-sys.exit()
-keychains = keychainGenerator(byteIter)
-i = 1
-for keychain in keychains:
-    with open(os.path.join(args.outputDir, str(i) + '.bin'), 'wb') as g:
-        g.write(keychain)
-    i += 1
+f = open(args.file, 'rb')
+g = open(args.locsFile, 'r')
+locs = []
+for x in g.readlines():
+    parts = x.split()
+    if len(parts) > 1:
+        locs.append(int(parts[1], 16))
+g.close()
+byteIter = byteReader(f)
+i = 0
+j = 0
+for loc in locs:
+    while i < loc:
+        next(byteIter)
+        i += 1
+    byteAccess = ByteAndDeck(byteIter, WINDOW_SIZE)
+    keychain = extractKeychain(byteAccess)
+    if keychain:
+        print('found keychain')
+        with open(os.path.join(args.outputDir, str(j) + '.bin'), 'wb') as h:
+            h.write(keychain)
+        j += 1
+    byteIter = itertools.chain(list(byteAccess.deck), byteIter)
