@@ -3,6 +3,7 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from lxml import html
 import csv
+import os
 import time
 
 
@@ -14,7 +15,7 @@ session.mount('https://', adapter)
 session.mount('http://', adapter)
 
 output = 'scrape.tsv'
-"""
+
 base_url = 'https://gis.vgsi.com/stamfordct/Streets.aspx?Letter='
 urls = [base_url + x for x in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'Y', 'Z']]
 street_links = []
@@ -54,14 +55,15 @@ with open('properties.txt', 'w') as f:
     for street_name, p_link in property_links:
         f.write(street_name + '\t' + p_link + '\n')
 print('done writing property links to properties.txt')
-"""
+
 
 completed_property_links = set()
-with open(output, 'r') as f:
-    reader = csv.DictReader(f, delimiter='\t')
-    for row in reader:
-        link = row['link']
-        completed_property_links.add(link)
+if os.path.isfile(output):
+    with open(output, 'r') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+        for row in reader:
+            link = row['link']
+            completed_property_links.add(link)
 property_links = []
 with open('properties.txt', 'r') as f:
     for line in f:
