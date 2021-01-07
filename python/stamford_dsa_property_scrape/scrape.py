@@ -56,17 +56,27 @@ with open('properties.txt', 'w') as f:
 print('done writing property links to properties.txt')
 """
 
+completed_property_links = set()
+with open(output, 'r') as f:
+    reader = csv.DictReader(f, delimiter='\t')
+    for row in reader:
+        link = row['link']
+        completed_property_links.add(link)
 property_links = []
 with open('properties.txt', 'r') as f:
     for line in f:
         if len(line) > 0:
             parts = [x.strip() for x in line.split('\t')]
             print(parts)
-            assert(len(parts) == 2)            
-            property_links.append(parts)
+            assert(len(parts) == 2)
+            if parts[1] not in completed_property_links:
+                property_links.append(parts)
 
+            
 property_attr_xpath = {'location': '//*[@id="MainContent_lblLocation"]', 'acct': '//*[@id="MainContent_lblAcctNum"]', 'assessment': '//*[@id="MainContent_lblGenAssessment"]', 'pid': '//*[@id="MainContent_lblPid"]', 'mblu': '//*[@id="MainContent_lblMblu"]', 'owner': '//*[@id="MainContent_lblGenOwner"]', 'appraisal':  '//*[@id="MainContent_lblGenAppraisal"]', 'buildingCount': '//*[@id="MainContent_lblBldCount"]'}
-f = open(output, 'w')
+
+
+f = open(output, 'a')
 w = csv.DictWriter(f, delimiter='\t', fieldnames=list(property_attr_xpath.keys()) + ['street', 'link'])
 w.writeheader()
 for street_name, p_link in property_links:
