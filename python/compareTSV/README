@@ -1,0 +1,1 @@
+A little pain in the ass I have: sometimes I need to check if two TSV files are the same, except for the order of rows and columns are permuted. This does that. 
