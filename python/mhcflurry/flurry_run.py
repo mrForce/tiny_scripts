@@ -13,6 +13,8 @@ predictor=mhcflurry.Class1AffinityPredictor.load()
 with open(args.peptideFile, 'r') as f:
     peptides = f.read().split('\n')
     peptides.remove('')
-    r = predictor.predict(alleles=args.allele, peptides=peptides)
-    np.save(args.output, r)
-    
+    arrays = []
+    for allele in args.allele:
+        arrays.append(predictor.predict(allele=allele, peptides=peptides))
+    with open(args.output, 'wb') as g:
+        np.save(g, np.stack(arrays, axis=1))    
